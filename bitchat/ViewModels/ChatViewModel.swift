@@ -1298,7 +1298,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         }
         
         // Update identity state manager with handshake completion
-        identityManager.updateHandshakeState(peerID: peerID, state: .completed(fingerprint: fingerprintStr))
+        identityManager.updateHandshakeState(peer: Peer(str: peerID), state: .completed(fingerprint: fingerprintStr))
         
         // Update encryption status now that we have the fingerprint
         updateEncryptionStatus(for: peerID)
@@ -4608,7 +4608,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             isConnected = true
             
             // Register ephemeral session with identity manager
-            identityManager.registerEphemeralSession(peerID: peerID, handshakeState: .none)
+            identityManager.registerEphemeralSession(peer: Peer(str: peerID), handshakeState: .none)
             
             // Intentionally do not resend favorites on reconnect.
             // We only send our npub when a favorite is toggled on, or if our npub changes.
@@ -4633,7 +4633,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         SecureLogger.debug("👋 Peer disconnected: \(peerID)", category: .session)
         
         // Remove ephemeral session from identity manager
-        identityManager.removeEphemeralSession(peerID: peerID)
+        identityManager.removeEphemeralSession(peer: Peer(str: peerID))
 
         // If the open PM is tied to this short peer ID, switch UI context to the full Noise key (offline favorite)
         var derivedStableKeyHex: String? = shortIDToNoiseKey[peerID]
@@ -4740,7 +4740,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             
             // Register ephemeral sessions for all connected peers
             for peerID in peers {
-                self.identityManager.registerEphemeralSession(peerID: peerID, handshakeState: .none)
+                self.identityManager.registerEphemeralSession(peer: Peer(str: peerID), handshakeState: .none)
             }
             
             // Schedule UI refresh to ensure offline favorites are shown
