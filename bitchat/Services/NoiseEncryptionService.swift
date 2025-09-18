@@ -400,7 +400,7 @@ final class NoiseEncryptionService {
         }
         
         // Check rate limit
-        guard rateLimiter.allowHandshake(from: peerID) else {
+        guard rateLimiter.allowHandshake(from: Peer(str: peerID)) else {
             SecureLogger.warning(.authenticationFailed(peerID: "Rate limited: \(peerID)"))
             throw NoiseSecurityError.rateLimitExceeded
         }
@@ -429,7 +429,7 @@ final class NoiseEncryptionService {
         }
         
         // Check rate limit
-        guard rateLimiter.allowHandshake(from: peerID) else {
+        guard rateLimiter.allowHandshake(from: Peer(str: peerID)) else {
             SecureLogger.warning(.authenticationFailed(peerID: "Rate limited: \(peerID)"))
             throw NoiseSecurityError.rateLimitExceeded
         }
@@ -463,7 +463,7 @@ final class NoiseEncryptionService {
         }
         
         // Check rate limit
-        guard rateLimiter.allowMessage(from: peerID) else {
+        guard rateLimiter.allowMessage(from: Peer(str: peerID)) else {
             throw NoiseSecurityError.rateLimitExceeded
         }
         
@@ -485,7 +485,7 @@ final class NoiseEncryptionService {
         }
         
         // Check rate limit
-        guard rateLimiter.allowMessage(from: peerID) else {
+        guard rateLimiter.allowMessage(from: Peer(str: peerID)) else {
             throw NoiseSecurityError.rateLimitExceeded
         }
         
