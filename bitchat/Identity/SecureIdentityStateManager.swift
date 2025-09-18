@@ -103,7 +103,7 @@ protocol SecureIdentityStateManagerProtocol {
     
     // MARK: Cryptographic Identities
     func upsertCryptographicIdentity(fingerprint: String, noisePublicKey: Data, signingPublicKey: Data?, claimedNickname: String?)
-    func getCryptoIdentitiesByPeerIDPrefix(_ peerID: String) -> [CryptographicIdentity]
+    func getCryptoIdentitiesByPeerIDPrefix(_ peer: Peer) -> [CryptographicIdentity]
     func updateSocialIdentity(_ identity: SocialIdentity)
     
     // MARK: Favorites Management
@@ -321,11 +321,11 @@ final class SecureIdentityStateManager: SecureIdentityStateManagerProtocol {
     }
 
     /// Find cryptographic identities whose fingerprint prefix matches a peerID (16-hex) short ID
-    func getCryptoIdentitiesByPeerIDPrefix(_ peerID: String) -> [CryptographicIdentity] {
+    func getCryptoIdentitiesByPeerIDPrefix(_ peer: Peer) -> [CryptographicIdentity] {
         queue.sync {
             // Defensive: ensure hex and correct length
-            guard peerID.count == 16, peerID.allSatisfy({ $0.isHexDigit }) else { return [] }
-            return cryptographicIdentities.values.filter { $0.fingerprint.hasPrefix(peerID) }
+            guard peer.isShort, peer.id.allSatisfy({ $0.isHexDigit }) else { return [] }
+            return cryptographicIdentities.values.filter { $0.fingerprint.hasPrefix(peer.id) }
         }
     }
     

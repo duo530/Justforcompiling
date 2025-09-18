@@ -10,6 +10,10 @@ import Foundation
 
 struct Peer: Equatable, Hashable {
     let id: String
+    
+    var isShort: Bool {
+        id.count == 16 && Data(hexString: id) != nil
+    }
 }
 
 extension Peer {
