@@ -126,7 +126,7 @@ final class PrivateChatManager: ObservableObject {
                 NotificationService.shared.sendPrivateMessageNotification(
                     from: message.sender,
                     message: message.content,
-                    peerID: senderPeerID
+                    peer: Peer(str: senderPeerID)
                 )
             }
         } else {

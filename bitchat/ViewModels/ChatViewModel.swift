@@ -1096,7 +1096,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 NotificationService.shared.sendPrivateMessageNotification(
                     from: senderName,
                     message: pm.content,
-                    peerID: convKey
+                    peer: Peer(str: convKey)
                 )
             }
         }
@@ -1850,7 +1850,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             NotificationService.shared.sendPrivateMessageNotification(
                 from: senderName,
                 message: pm.content,
-                peerID: convKey
+                peer: Peer(str: convKey)
             )
         }
         
@@ -5366,7 +5366,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             NotificationService.shared.sendPrivateMessageNotification(
                 from: senderNickname,
                 message: messageContent,
-                peerID: targetPeerID
+                peer: Peer(str: targetPeerID)
             )
         }
     }
@@ -5598,7 +5598,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                     NotificationService.shared.sendPrivateMessageNotification(
                         from: finalSenderNickname,
                         message: content,
-                        peerID: tempPeerID
+                        peer: Peer(str: tempPeerID)
                     )
                 } else {
                     // Not notifying for old message
@@ -5932,7 +5932,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 NotificationService.shared.sendPrivateMessageNotification(
                     from: message.sender,
                     message: message.content,
-                    peerID: peerID
+                    peer: Peer(str: peerID)
                 )
             }
         } else {
