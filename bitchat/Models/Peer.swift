@@ -61,7 +61,13 @@ extension Peer {
     
     /// Full Noise key hex (exact 64-hex)
     var isNoiseKeyHex: Bool {
-        id.count == Constants.maxIDLength && Data(hexString: id) != nil
+        noiseKey != nil
+    }
+    
+    /// Full Noise key (exact 64-hex) as Data
+    var noiseKey: Data? {
+        guard id.count == Constants.maxIDLength else { return nil }
+        return Data(hexString: id)
     }
 }
 

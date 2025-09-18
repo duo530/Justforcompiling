@@ -2284,7 +2284,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         
         // Send via appropriate transport (BLE if connected/reachable, else Nostr when possible)
         if isConnected || isReachable || (isMutualFavorite && hasNostrKey) {
-            messageRouter.sendPrivate(content, to: peerID, recipientNickname: recipientNickname ?? "user", messageID: messageID)
+            messageRouter.sendPrivate(content, to: Peer(str: peerID), recipientNickname: recipientNickname ?? "user", messageID: messageID)
             // Optimistically mark as sent for both transports; delivery/read will update subsequently
             if let idx = privateChats[peerID]?.firstIndex(where: { $0.id == messageID }) {
                 privateChats[peerID]?[idx].deliveryStatus = .sent
@@ -2866,7 +2866,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 switch sessionState {
                 case .established:
                     // Send the message directly without going through sendPrivateMessage to avoid local echo
-                    messageRouter.sendPrivate(screenshotMessage, to: peerID, recipientNickname: peerNickname, messageID: UUID().uuidString)
+                    messageRouter.sendPrivate(screenshotMessage, to: Peer(str: peerID), recipientNickname: peerNickname, messageID: UUID().uuidString)
                 default:
                     // Don't send screenshot notification if no session exists
                     SecureLogger.debug("Skipping screenshot notification to \(peerID) - no established session", category: .security)
@@ -2988,7 +2988,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             return
         }
         // Use router to decide (mesh if reachable, else Nostr if available)
-        messageRouter.sendReadReceipt(receipt, to: actualPeerID)
+        messageRouter.sendReadReceipt(receipt, to: Peer(str: actualPeerID))
     }
     
     @MainActor
@@ -3049,7 +3049,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                         // Use stable Noise key hex if available; else fall back to peerID
                         let recipPeer = (Data(hexString: peerID) != nil) ? peerID : (unifiedPeerService.getPeer(by: peerID)?.noisePublicKey.hexEncodedString() ?? peerID)
                         let receipt = ReadReceipt(originalMessageID: message.id, readerID: meshService.myPeerID, readerNickname: nickname)
-                        messageRouter.sendReadReceipt(receipt, to: recipPeer)
+                        messageRouter.sendReadReceipt(receipt, to: Peer(str: recipPeer))
                         sentReadReceipts.insert(message.id)
                     }
                 }
@@ -4623,7 +4623,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             }
 
             // Flush any queued messages for this peer via router
-            messageRouter.flushOutbox(for: peerID)
+            messageRouter.flushOutbox(for: Peer(str: peerID))
         }
         
         //
@@ -5312,7 +5312,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         
         if let key {
             SecureLogger.debug("Sending DELIVERED ack for \(message.id.prefix(8))… via router", category: .session)
-            messageRouter.sendDeliveryAck(message.id, to: key.hexEncodedString())
+            messageRouter.sendDeliveryAck(message.id, to: Peer(str: key.hexEncodedString()))
         } else if let id = try? NostrIdentityBridge.getCurrentNostrIdentity() {
             // Fallback: no Noise mapping yet — send directly to sender's Nostr pubkey
             let nt = NostrTransport(keychain: keychain)
@@ -5333,7 +5333,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             if let key {
                 let receipt = ReadReceipt(originalMessageID: message.id, readerID: meshService.myPeerID, readerNickname: nickname)
                 SecureLogger.debug("Viewing chat; sending READ ack for \(message.id.prefix(8))… via router", category: .session)
-                messageRouter.sendReadReceipt(receipt, to: key.hexEncodedString())
+                messageRouter.sendReadReceipt(receipt, to: Peer(str: key.hexEncodedString()))
                 sentReadReceipts.insert(message.id)
             } else if let id = try? NostrIdentityBridge.getCurrentNostrIdentity() {
                 let nt = NostrTransport(keychain: keychain)
@@ -5655,7 +5655,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
     @MainActor
     private func sendFavoriteNotificationViaNostr(noisePublicKey: Data, isFavorite: Bool) {
         let peerIDHex = noisePublicKey.hexEncodedString()
-        messageRouter.sendFavoriteNotification(to: peerIDHex, isFavorite: isFavorite)
+        messageRouter.sendFavoriteNotification(to: Peer(str: peerIDHex), isFavorite: isFavorite)
     }
     
     @MainActor
@@ -5675,12 +5675,12 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         
         // Try mesh first for connected peers
         if meshService.isPeerConnected(peerID) {
-            messageRouter.sendFavoriteNotification(to: peerID, isFavorite: isFavorite)
+            messageRouter.sendFavoriteNotification(to: Peer(str: peerID), isFavorite: isFavorite)
             SecureLogger.debug("📤 Sent favorite notification via BLE to \(peerID)", category: .session)
         } else if let key = noiseKey {
             // Send via Nostr for offline peers (using router)
             let recipientPeerID = key.hexEncodedString()
-            messageRouter.sendFavoriteNotification(to: recipientPeerID, isFavorite: isFavorite)
+            messageRouter.sendFavoriteNotification(to: Peer(str: recipientPeerID), isFavorite: isFavorite)
         } else {
             SecureLogger.warning("⚠️ Cannot send favorite notification - peer not connected and no Nostr pubkey", category: .session)
         }

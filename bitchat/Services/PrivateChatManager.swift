@@ -231,7 +231,7 @@ final class PrivateChatManager: ObservableObject {
         if let router = messageRouter {
             SecureLogger.debug("PrivateChatManager: sending READ ack for \(message.id.prefix(8))… to \(senderPeerID.prefix(8))… via router", category: .session)
             Task { @MainActor in
-                router.sendReadReceipt(receipt, to: senderPeerID)
+                router.sendReadReceipt(receipt, to: Peer(str: senderPeerID))
             }
         } else {
             // Fallback: preserve previous behavior
