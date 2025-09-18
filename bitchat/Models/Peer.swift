@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import struct CryptoKit.SHA256
 
 struct Peer: Equatable, Hashable {
     let id: String
@@ -109,5 +110,24 @@ extension Peer {
             return nil
         }
         self.init(str: str)
+    }
+}
+
+// MARK: - Noise Public Key Helpers
+
+extension Peer {
+    /// Derive the stable 16-hex peer ID from a Noise static public key
+    init(publicKey: Data) {
+        let digest = SHA256.hash(data: publicKey)
+        let hex = digest.map { String(format: "%02x", $0) }.joined()
+        self.init(str: hex.prefix(16))
+    }
+    
+    /// Returns a 16-hex short peer ID derived from a 64-hex Noise public key if needed
+    func toShort() -> Peer {
+        if id.count == Constants.maxIDLength, let data = Data(hexString: id) {
+            return Peer(publicKey: data)
+        }
+        return self
     }
 }
