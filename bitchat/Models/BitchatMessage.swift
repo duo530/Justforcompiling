@@ -52,7 +52,7 @@ final class BitchatMessage: Codable {
         originalSender: String? = nil,
         isPrivate: Bool = false,
         recipientNickname: String? = nil,
-        senderPeer: Peer?,
+        senderPeer: Peer? = nil,
         mentions: [String]? = nil,
         deliveryStatus: DeliveryStatus? = nil
     ) {
@@ -67,37 +67,6 @@ final class BitchatMessage: Codable {
         self.senderPeer = senderPeer
         self.mentions = mentions
         self.deliveryStatus = deliveryStatus ?? (isPrivate ? .sending : nil)
-    }
-}
-
-extension BitchatMessage {
-    // Temp solution to minimize the code-change
-    convenience init(
-        id: String? = nil,
-        sender: String,
-        content: String,
-        timestamp: Date,
-        isRelay: Bool,
-        originalSender: String? = nil,
-        isPrivate: Bool = false,
-        recipientNickname: String? = nil,
-        senderPeerID: String? = nil,
-        mentions: [String]? = nil,
-        deliveryStatus: DeliveryStatus? = nil
-    ) {
-        self.init(
-            id: id,
-            sender: sender,
-            content: content,
-            timestamp: timestamp,
-            isRelay: isRelay,
-            originalSender: originalSender,
-            isPrivate: isPrivate,
-            recipientNickname: recipientNickname,
-            senderPeer: senderPeerID != nil ? Peer(str: senderPeerID!) : nil,
-            mentions: mentions,
-            deliveryStatus: deliveryStatus
-        )
     }
 }
 

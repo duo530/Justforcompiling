@@ -134,7 +134,7 @@ final class BLEServiceTests: XCTestCase {
             originalSender: nil,
             isPrivate: false,
             recipientNickname: nil,
-            senderPeerID: "REMOTE123",
+            senderPeer: "REMOTE123",
             mentions: nil
         )
         
@@ -161,7 +161,7 @@ final class BLEServiceTests: XCTestCase {
             originalSender: nil,
             isPrivate: false,
             recipientNickname: nil,
-            senderPeerID: "PACKET123",
+            senderPeer: "PACKET123",
             mentions: nil
         )
         
@@ -243,7 +243,7 @@ final class BLEServiceTests: XCTestCase {
             originalSender: nil,
             isPrivate: false,
             recipientNickname: nil,
-            senderPeerID: "TEST123",
+            senderPeer: "TEST123",
             mentions: nil
         )
         

@@ -73,7 +73,7 @@ final class PrivateChatManager: ObservableObject {
             originalSender: nil,
             isPrivate: true,
             recipientNickname: peerNickname,
-            senderPeerID: meshService.myPeerID,
+            senderPeer: Peer(str: meshService.myPeerID),
             mentions: nil,
             deliveryStatus: .sending
         )

@@ -997,7 +997,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             content: content,
             timestamp: timestamp,
             isRelay: false,
-            senderPeerID: "nostr:\(event.pubkey.prefix(TransportConfig.nostrShortKeyDisplayLength))",
+            senderPeer: "nostr:\(event.pubkey.prefix(TransportConfig.nostrShortKeyDisplayLength))",
             mentions: mentions.isEmpty ? nil : mentions
         )
         Task { @MainActor in
@@ -1068,7 +1068,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             isRelay: false,
             isPrivate: true,
             recipientNickname: nickname,
-            senderPeerID: convKey,
+            senderPeer: Peer(str: convKey),
             deliveryStatus: .delivered(to: nickname, at: Date())
         )
         
@@ -1468,7 +1468,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             content: trimmed,
             timestamp: Date(),
             isRelay: false,
-            senderPeerID: localSenderPeerID,
+            senderPeer: Peer(str: localSenderPeerID),
             mentions: mentions.isEmpty ? nil : mentions
         )
         
@@ -1719,7 +1719,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             content: content,
             timestamp: min(rawTs, Date()),
             isRelay: false,
-            senderPeerID: "nostr:\(event.pubkey.prefix(TransportConfig.nostrShortKeyDisplayLength))",
+            senderPeer: "nostr:\(event.pubkey.prefix(TransportConfig.nostrShortKeyDisplayLength))",
             mentions: mentions.isEmpty ? nil : mentions
         )
         
@@ -1819,7 +1819,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             isRelay: false,
             isPrivate: true,
             recipientNickname: nickname,
-            senderPeerID: convKey,
+            senderPeer: Peer(str: convKey),
             deliveryStatus: .delivered(to: nickname, at: Date())
         )
         
@@ -2158,7 +2158,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 content: content,
                 timestamp: ts,
                 isRelay: false,
-                senderPeerID: "nostr:\(event.pubkey.prefix(TransportConfig.nostrShortKeyDisplayLength))",
+                senderPeer: "nostr:\(event.pubkey.prefix(TransportConfig.nostrShortKeyDisplayLength))",
                 mentions: mentions.isEmpty ? nil : mentions
             )
             if !arr.contains(where: { $0.id == msg.id }) {
@@ -2267,7 +2267,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             originalSender: nil,
             isPrivate: true,
             recipientNickname: recipientNickname,
-            senderPeerID: meshService.myPeerID,
+            senderPeer: Peer(str: meshService.myPeerID),
             mentions: nil,
             deliveryStatus: .sending
         )
@@ -2314,7 +2314,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             isRelay: false,
             isPrivate: true,
             recipientNickname: nickname,
-            senderPeerID: meshService.myPeerID,
+            senderPeer: Peer(str: meshService.myPeerID),
             deliveryStatus: .sending
         )
         
@@ -2403,7 +2403,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             originalSender: nil,
             isPrivate: true,
             recipientNickname: meshService.peerNickname(peerID: peerID),
-            senderPeerID: meshService.myPeerID
+            senderPeer: Peer(str: meshService.myPeerID)
         )
         if privateChats[peerID] == nil { privateChats[peerID] = [] }
         privateChats[peerID]?.append(systemMessage)
@@ -2501,7 +2501,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                                 originalSender: message.originalSender,
                                 isPrivate: message.isPrivate,
                                 recipientNickname: message.recipientNickname,
-                                senderPeerID: message.senderPeer?.id == meshService.myPeerID ? meshService.myPeerID : peerID,  // Update peer ID if it's from them
+                                senderPeer: message.senderPeer?.id == meshService.myPeerID ? Peer(str: meshService.myPeerID) : Peer(str: peerID),  // Update peer ID if it's from them
                                 mentions: message.mentions,
                                 deliveryStatus: message.deliveryStatus
                             )
@@ -2589,7 +2589,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                                 originalSender: message.originalSender,
                                 isPrivate: message.isPrivate,
                                 recipientNickname: message.recipientNickname,
-                                senderPeerID: peerID,  // Update to match current peer
+                                senderPeer: Peer(str: peerID),  // Update to match current peer
                                 mentions: message.mentions,
                                 deliveryStatus: message.deliveryStatus
                             )
@@ -2812,7 +2812,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 originalSender: nil,
                 isPrivate: false,
                 recipientNickname: nil,
-                senderPeerID: nil,
+                senderPeer: nil,
                 mentions: nil
             )
             
@@ -2882,7 +2882,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 originalSender: nil,
                 isPrivate: true,
                 recipientNickname: meshService.peerNickname(peerID: peerID),
-                senderPeerID: meshService.myPeerID
+                senderPeer: Peer(str: meshService.myPeerID)
             )
             var chats = privateChats
             if chats[peerID] == nil {
@@ -4451,7 +4451,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 originalSender: nil,
                 isPrivate: true,
                 recipientNickname: nickname,
-                senderPeerID: peerID,
+                senderPeer: Peer(str: peerID),
                 mentions: pmMentions.isEmpty ? nil : pmMentions
             )
                 handlePrivateMessage(msg)
@@ -4558,7 +4558,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 originalSender: nil,
                 isPrivate: false,
                 recipientNickname: nil,
-                senderPeerID: peerID,
+                senderPeer: Peer(str: peerID),
                 mentions: publicMentions.isEmpty ? nil : publicMentions
             )
             handlePublicMessage(msg)
@@ -4659,7 +4659,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                         originalSender: msg.originalSender,
                         isPrivate: msg.isPrivate,
                         recipientNickname: msg.recipientNickname,
-                        senderPeerID: (msg.senderPeer?.id == meshService.myPeerID) ? meshService.myPeerID : stableKeyHex,
+                        senderPeer: (msg.senderPeer?.id == meshService.myPeerID) ? Peer(str: meshService.myPeerID) : Peer(str: stableKeyHex),
                         mentions: msg.mentions,
                         deliveryStatus: msg.deliveryStatus
                     )
@@ -5224,7 +5224,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             isRelay: false,
             isPrivate: true,
             recipientNickname: nickname,
-            senderPeerID: targetPeerID,
+            senderPeer: Peer(str: targetPeerID),
             deliveryStatus: .delivered(to: nickname, at: Date())
         )
         
@@ -5566,7 +5566,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             originalSender: nil,
             isPrivate: true,
             recipientNickname: nickname,
-            senderPeerID: tempPeerID,
+            senderPeer: Peer(str: tempPeerID),
             mentions: nil,
             deliveryStatus: .delivered(to: nickname, at: Date())
         )
@@ -5731,7 +5731,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 originalSender: message.originalSender,
                 isPrivate: message.isPrivate,
                 recipientNickname: message.recipientNickname,
-                senderPeerID: message.senderPeer?.id,
+                senderPeer: message.senderPeer,
                 mentions: message.mentions,
                 deliveryStatus: message.deliveryStatus
             )
