@@ -616,10 +616,11 @@ final class BLEService: NSObject {
         var payload = Data([NoisePayloadType.readReceipt.rawValue])
         payload.append(contentsOf: receipt.originalMessageID.utf8)
 
-        if noiseService.hasEstablishedSession(with: peerID) {
+        let peer = Peer(str: peerID)
+        if noiseService.hasEstablishedSession(with: peer) {
             SecureLogger.debug("📤 Sending READ receipt for message \(receipt.originalMessageID) to \(peerID)", category: .session)
             do {
-                let encrypted = try noiseService.encrypt(payload, for: peerID)
+                let encrypted = try noiseService.encrypt(payload, for: peer)
                 let packet = BitchatPacket(
                     type: MessageType.noiseEncrypted.rawValue,
                     senderID: myPeerIDData,
@@ -643,7 +644,7 @@ final class BLEService: NSObject {
                 guard let self = self else { return }
                 self.pendingNoisePayloadsAfterHandshake[peerID, default: []].append(payload)
             }
-            if !noiseService.hasSession(with: peerID) { initiateNoiseHandshake(with: peerID) }
+            if !noiseService.hasSession(with: peer) { initiateNoiseHandshake(with: peerID) }
             SecureLogger.debug("🕒 Queued READ receipt for \(peerID) until handshake completes", category: .session)
         }
     }
@@ -664,13 +665,13 @@ final class BLEService: NSObject {
     }
 
     private func sendNoisePayload(_ typedPayload: Data, to peerID: String) {
-        guard noiseService.hasSession(with: peerID) else {
+        guard noiseService.hasSession(with: Peer(str: peerID)) else {
             // Lazy-handshake path: queue? For now, initiate handshake and drop
             initiateNoiseHandshake(with: peerID)
             return
         }
         do {
-            let encrypted = try noiseService.encrypt(typedPayload, for: peerID)
+            let encrypted = try noiseService.encrypt(typedPayload, for: Peer(str: peerID))
             let packet = BitchatPacket(
                 type: MessageType.noiseEncrypted.rawValue,
                 senderID: myPeerIDData,
@@ -705,9 +706,9 @@ final class BLEService: NSObject {
     
     
     func getNoiseSessionState(for peerID: String) -> LazyHandshakeState {
-        if noiseService.hasEstablishedSession(with: peerID) {
+        if noiseService.hasEstablishedSession(with: Peer(str: peerID)) {
             return .established
-        } else if noiseService.hasSession(with: peerID) {
+        } else if noiseService.hasSession(with: Peer(str: peerID)) {
             return .handshaking
         } else {
             return .none
@@ -838,7 +839,7 @@ final class BLEService: NSObject {
         SecureLogger.debug("📨 Sending PM to \(recipientID): \(content.prefix(30))...", category: .session)
         
         // Check if we have an established Noise session
-        if noiseService.hasEstablishedSession(with: recipientID) {
+        if noiseService.hasEstablishedSession(with: Peer(str: recipientID)) {
             // Encrypt and send
             do {
                 // Create TLV-encoded private message
@@ -852,7 +853,7 @@ final class BLEService: NSObject {
                 var messagePayload = Data([NoisePayloadType.privateMessage.rawValue])
                 messagePayload.append(tlvData)
                 
-                let encrypted = try noiseService.encrypt(messagePayload, for: recipientID)
+                let encrypted = try noiseService.encrypt(messagePayload, for: Peer(str: recipientID))
                 
                 // Convert recipientID to Data (assuming it's a hex string)
                 var recipientData = Data()
@@ -918,10 +919,10 @@ final class BLEService: NSObject {
     
     private func initiateNoiseHandshake(with peerID: String) {
         // Use NoiseEncryptionService for handshake
-        guard !noiseService.hasSession(with: peerID) else { return }
+        guard !noiseService.hasSession(with: Peer(str: peerID)) else { return }
         
         do {
-            let handshakeData = try noiseService.initiateHandshake(with: peerID)
+            let handshakeData = try noiseService.initiateHandshake(with: Peer(str: peerID))
             
             // Send handshake init
             let packet = BitchatPacket(
@@ -971,7 +972,7 @@ final class BLEService: NSObject {
                 var messagePayload = Data([NoisePayloadType.privateMessage.rawValue])
                 messagePayload.append(tlvData)
 
-                let encrypted = try noiseService.encrypt(messagePayload, for: peerID)
+                let encrypted = try noiseService.encrypt(messagePayload, for: Peer(str: peerID))
 
                 let packet = BitchatPacket(
                     type: MessageType.noiseEncrypted.rawValue,
@@ -1785,7 +1786,7 @@ final class BLEService: NSObject {
            recipientID.hexEncodedString() == myPeerID {
             // Handshake is for us
             do {
-                if let response = try noiseService.processHandshakeMessage(from: peerID, message: packet.payload) {
+                if let response = try noiseService.processHandshakeMessage(from: Peer(str: peerID), message: packet.payload) {
                     // Send response
                     let responsePacket = BitchatPacket(
                         type: MessageType.noiseHandshake.rawValue,
@@ -1805,7 +1806,7 @@ final class BLEService: NSObject {
             } catch {
                 SecureLogger.error("Failed to process handshake: \(error)")
                 // Try initiating a new handshake
-                if !noiseService.hasSession(with: peerID) {
+                if !noiseService.hasSession(with: Peer(str: peerID)) {
                     initiateNoiseHandshake(with: peerID)
                 }
             }
@@ -1830,7 +1831,7 @@ final class BLEService: NSObject {
         updatePeerLastSeen(peerID)
         
         do {
-            let decrypted = try noiseService.decrypt(packet.payload, from: peerID)
+            let decrypted = try noiseService.decrypt(packet.payload, from: Peer(str: peerID))
             guard decrypted.count > 0 else { return }
             
             // First byte indicates the payload type
@@ -1870,7 +1871,7 @@ final class BLEService: NSObject {
             // We received an encrypted message before establishing a session with this peer.
             // Trigger a handshake so future messages can be decrypted.
             SecureLogger.debug("🔑 Encrypted message from \(peerID) without session; initiating handshake")
-            if !noiseService.hasSession(with: peerID) {
+            if !noiseService.hasSession(with: Peer(str: peerID)) {
                 initiateNoiseHandshake(with: peerID)
             }
         } catch {
@@ -1975,9 +1976,9 @@ final class BLEService: NSObject {
         var payload = Data([NoisePayloadType.delivered.rawValue])
         payload.append(contentsOf: messageID.utf8)
 
-        if noiseService.hasEstablishedSession(with: peerID) {
+        if noiseService.hasEstablishedSession(with: Peer(str: peerID)) {
             do {
-                let encrypted = try noiseService.encrypt(payload, for: peerID)
+                let encrypted = try noiseService.encrypt(payload, for: Peer(str: peerID))
                 let packet = BitchatPacket(
                     type: MessageType.noiseEncrypted.rawValue,
                     senderID: myPeerIDData,
@@ -1997,7 +1998,7 @@ final class BLEService: NSObject {
                 guard let self = self else { return }
                 self.pendingNoisePayloadsAfterHandshake[peerID, default: []].append(payload)
             }
-            if !noiseService.hasSession(with: peerID) { initiateNoiseHandshake(with: peerID) }
+            if !noiseService.hasSession(with: Peer(str: peerID)) { initiateNoiseHandshake(with: peerID) }
             SecureLogger.debug("🕒 Queued DELIVERED ack for \(peerID) until handshake completes", category: .session)
         }
     }
@@ -2012,7 +2013,7 @@ final class BLEService: NSObject {
         SecureLogger.debug("📤 Sending \(payloads.count) pending noise payloads to \(peerID) after handshake", category: .session)
         for payload in payloads {
             do {
-                let encrypted = try noiseService.encrypt(payload, for: peerID)
+                let encrypted = try noiseService.encrypt(payload, for: Peer(str: peerID))
                 let packet = BitchatPacket(
                     type: MessageType.noiseEncrypted.rawValue,
                     senderID: myPeerIDData,
