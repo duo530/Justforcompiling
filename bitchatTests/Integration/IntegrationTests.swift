@@ -627,7 +627,7 @@ final class IntegrationTests: XCTestCase {
             guard packet.ttl > 1 else { return }
             
             if let message = BitchatMessage(packet.payload) {
-                guard message.senderPeerID != node.peerID else { return }
+                guard message.senderPeer?.id != node.peerID else { return }
                 
                 let relayMessage = BitchatMessage(
                     id: message.id,
@@ -638,7 +638,7 @@ final class IntegrationTests: XCTestCase {
                     originalSender: message.isRelay ? message.originalSender : message.sender,
                     isPrivate: message.isPrivate,
                     recipientNickname: message.recipientNickname,
-                    senderPeerID: message.senderPeerID,
+                    senderPeerID: message.senderPeer?.id,
                     mentions: message.mentions
                 )
                 

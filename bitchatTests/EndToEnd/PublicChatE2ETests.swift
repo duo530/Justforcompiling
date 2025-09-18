@@ -111,7 +111,7 @@ final class PublicChatE2ETests: XCTestCase {
                     originalSender: message.sender,
                     isPrivate: message.isPrivate,
                     recipientNickname: message.recipientNickname,
-                    senderPeerID: message.senderPeerID,
+                    senderPeerID: message.senderPeer?.id,
                     mentions: message.mentions
                 )
                 
@@ -439,7 +439,7 @@ final class PublicChatE2ETests: XCTestCase {
             
             if let message = BitchatMessage(packet.payload) {
                 // Don't relay own messages
-                guard message.senderPeerID != node.peerID else { return }
+                guard message.senderPeer?.id != node.peerID else { return }
                 
                 // Create relay message
                 let relayMessage = BitchatMessage(
@@ -451,7 +451,7 @@ final class PublicChatE2ETests: XCTestCase {
                     originalSender: message.isRelay ? message.originalSender : message.sender,
                     isPrivate: message.isPrivate,
                     recipientNickname: message.recipientNickname,
-                    senderPeerID: message.senderPeerID,
+                    senderPeerID: message.senderPeer?.id,
                     mentions: message.mentions
                 )
                 

@@ -459,7 +459,7 @@ struct ContentView: View {
                     if let name = viewModel.meshService.peerNickname(peerID: peerID) {
                         selectedMessageSender = name
                     } else {
-                        selectedMessageSender = viewModel.messages.last(where: { $0.senderPeerID == peerID && $0.sender != "system" })?.sender
+                        selectedMessageSender = viewModel.messages.last(where: { $0.senderPeer?.id == peerID && $0.sender != "system" })?.sender
                     }
                 }
                 if viewModel.isSelfSender(peerID: selectedMessageSenderID, displayName: selectedMessageSender) {

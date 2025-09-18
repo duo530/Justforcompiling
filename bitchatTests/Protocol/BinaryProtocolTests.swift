@@ -204,7 +204,7 @@ final class BinaryProtocolTests: XCTestCase {
         
         XCTAssertEqual(decodedMessage.content, message.content)
         XCTAssertEqual(decodedMessage.sender, message.sender)
-        XCTAssertEqual(decodedMessage.senderPeerID, message.senderPeerID)
+        XCTAssertEqual(decodedMessage.senderPeerID, message.senderPeer?.id)
         XCTAssertEqual(decodedMessage.isPrivate, message.isPrivate)
         
         // Timestamp should be close (within 1 second due to conversion)

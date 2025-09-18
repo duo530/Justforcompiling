@@ -94,7 +94,7 @@ final class PrivateChatManager: ObservableObject {
     
     /// Handle incoming private message
     func handleIncomingMessage(_ message: BitchatMessage) {
-        guard let senderPeerID = message.senderPeerID else { return }
+        guard let senderPeerID = message.senderPeer?.id else { return }
         
         // Initialize chat if needed
         if privateChats[senderPeerID] == nil {
@@ -161,7 +161,7 @@ final class PrivateChatManager: ObservableObject {
         // Send read receipts for unread messages that haven't been sent yet
         if let messages = privateChats[peerID] {
             for message in messages {
-                if message.senderPeerID == peerID && !message.isRelay && !sentReadReceipts.contains(message.id) {
+                if message.senderPeer?.id == peerID && !message.isRelay && !sentReadReceipts.contains(message.id) {
                     sendReadReceipt(for: message)
                 }
             }
@@ -214,7 +214,7 @@ final class PrivateChatManager: ObservableObject {
     
     private func sendReadReceipt(for message: BitchatMessage) {
         guard !sentReadReceipts.contains(message.id),
-              let senderPeerID = message.senderPeerID else {
+              let senderPeerID = message.senderPeer?.id else {
             return
         }
         
