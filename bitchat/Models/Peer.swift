@@ -10,10 +10,6 @@ import Foundation
 
 struct Peer: Equatable, Hashable {
     let id: String
-    
-    var isShort: Bool {
-        id.count == 16 && Data(hexString: id) != nil
-    }
 }
 
 extension Peer {
@@ -27,6 +23,44 @@ extension Peer {
     
     var isNostrColon: Bool {
         id.hasPrefix("nostr:")
+    }
+}
+
+// MARK: - Validation
+
+extension Peer {
+    private enum Constants {
+        static let maxIDLength = 64
+        static let hexIDLength = 16 // 8 bytes = 16 hex chars
+    }
+    
+    /// Validates a peer ID from any source (short 16-hex, full 64-hex, or internal alnum/-/_ up to 64)
+    var isValid: Bool {
+        // Accept short routing IDs (exact 16-hex) or Full Noise key hex (exact 64-hex)
+        if isShort || isNoiseKeyHex {
+            return true
+        }
+        
+        // If length equals short or full but isn't valid hex, reject
+        if id.count == Constants.hexIDLength || id.count == Constants.maxIDLength {
+            return false
+        }
+        
+        // Internal format: alphanumeric + dash/underscore up to 63 (not 16 or 64)
+        let validCharset = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        return !id.isEmpty &&
+                id.count < Constants.maxIDLength &&
+                id.rangeOfCharacter(from: validCharset.inverted) == nil
+    }
+    
+    /// Short routing IDs (exact 16-hex)
+    var isShort: Bool {
+        id.count == Constants.hexIDLength && Data(hexString: id) != nil
+    }
+    
+    /// Full Noise key hex (exact 64-hex)
+    var isNoiseKeyHex: Bool {
+        id.count == Constants.maxIDLength && Data(hexString: id) != nil
     }
 }
 
