@@ -137,6 +137,7 @@ struct ContentView: View {
 // MARK: - Body
     
     var body: some View {
+<<<<<<< HEAD
         VStack(spacing: 0) {
             mainHeaderView
                 .onAppear { viewModel.currentColorScheme = colorScheme }
@@ -149,6 +150,30 @@ struct ContentView: View {
             GeometryReader { geometry in
                 VStack(spacing: 0) {
                     messagesView(privatePeer: nil, isAtBottom: $isAtBottomPublic)
+=======
+        GeometryReader { geometry in
+            ZStack {
+                // Base layer - Main public chat (always visible)
+                mainChatView
+                    .onAppear {
+                        viewModel.currentColorScheme = colorScheme
+                        #if os(macOS)
+                        // Focus message input on macOS launch, not nickname field
+                        DispatchQueue.main.async {
+                            isNicknameFieldFocused = false
+                            isTextFieldFocused = true
+                        }
+                        #endif
+                    }
+                    .onChange(of: colorScheme) { newValue in
+                        viewModel.currentColorScheme = newValue
+                    }
+                
+                // Private chat slide-over
+                if viewModel.selectedPrivateChatPeer != nil {
+                    privateChatView
+                        .frame(width: geometry.size.width)
+>>>>>>> 49a22aa9 (macOS: Focus message input on launch instead of nickname field)
                         .background(backgroundColor)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
