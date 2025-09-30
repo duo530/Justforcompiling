@@ -358,6 +358,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
     private var geoSubscriptionID: String? = nil
     private var geoDmSubscriptionID: String? = nil
     private var currentGeohash: String? = nil
+    private var cachedGeohashIdentity: (geohash: String, identity: NostrIdentity)? = nil // Cache current geohash identity
     private var geoNicknames: [String: String] = [:] // pubkeyHex(lowercased) -> nickname
     // Show Tor status once per app launch
     private var torStatusAnnounced = false
@@ -3741,7 +3742,17 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             if let spid = message.senderPeerID {
                 // In geohash channels, compare against our per-geohash nostr short ID
                 if case .location(let ch) = activeChannel, spid.isGeoChat {
-                    if let myGeo = try? idBridge.deriveIdentity(forGeohash: ch.geohash) {
+                    let myGeo: NostrIdentity? = {
+                        if let cached = cachedGeohashIdentity, cached.geohash == ch.geohash {
+                            return cached.identity
+                        }
+                        if let identity = try? idBridge.deriveIdentity(forGeohash: ch.geohash) {
+                            cachedGeohashIdentity = (ch.geohash, identity)
+                            return identity
+                        }
+                        return nil
+                    }()
+                    if let myGeo {
                         return spid == PeerID(nostr: myGeo.publicKeyHex)
                     }
                 }
