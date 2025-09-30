@@ -1403,7 +1403,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         // Ignore messages that are empty or whitespace-only to prevent blank lines
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        
+
         // Check for commands
         if content.hasPrefix("/") {
             Task { @MainActor in
@@ -1411,20 +1411,20 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             }
             return
         }
-        
+
         if selectedPrivateChatPeer != nil {
             // Update peer ID in case it changed due to reconnection
             updatePrivateChatPeerIfNeeded()
-            
+
             if let selectedPeer = selectedPrivateChatPeer {
                 sendPrivateMessage(content, to: selectedPeer)
             }
             return
         }
-        
+
         // Parse mentions from the content (use original content for user intent)
         let mentions = parseMentions(from: content)
-        
+
         // Add message to local display
         var displaySender = nickname
         var localSenderPeerID = meshService.myPeerID
@@ -1443,14 +1443,20 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             senderPeerID: localSenderPeerID,
             mentions: mentions.isEmpty ? nil : mentions
         )
-        
+
+        print("📤 Created message id=\(message.id.prefix(8))... content='\(trimmed)'")
+        print("📤 BEFORE append: messages.count=\(messages.count)")
+
         // Add to main messages immediately for user feedback
         messages.append(message)
-        
+
+        print("📤 AFTER append: messages.count=\(messages.count)")
+        print("📤 Last message in array: id=\(messages.last?.id.prefix(8) ?? "nil") content='\(messages.last?.content ?? "nil")'")
+
         // Update content LRU for near-dup detection
         let ckey = normalizedContentKey(message.content)
         recordContentKey(ckey, timestamp: message.timestamp)
-        
+
         // Persist to channel-specific timelines
         switch activeChannel {
         case .mesh:
@@ -1464,14 +1470,18 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             }
             geoTimelines[ch.geohash] = arr
         }
-        trimMessagesIfNeeded()
-        
-        // Force immediate UI update for user's own messages
-        objectWillChange.send()
 
+        print("📤 BEFORE trimMessagesIfNeeded: messages.count=\(messages.count)")
+        trimMessagesIfNeeded()
+        print("📤 AFTER trimMessagesIfNeeded: messages.count=\(messages.count)")
+
+        // UI updates automatically via @Published var messages
+
+        print("📤 Calling updateChannelActivityTimeThenSend")
         updateChannelActivityTimeThenSend(content: content, trimmed: trimmed, mentions: mentions)
+        print("📤 sendMessage COMPLETE - final messages.count=\(messages.count)")
     }
-    
+
     private func updateChannelActivityTimeThenSend(content: String, trimmed: String, mentions: [String]) {
         switch activeChannel {
         case .mesh:
@@ -2392,15 +2402,20 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self = self else { return }
             do {
-                let data = try Data(contentsOf: url)
-                guard data.count <= FileTransferLimits.maxVoiceNoteBytes else {
-                    SecureLogger.warning("Voice note exceeds size limit (\(data.count) bytes)", category: .session)
+                // Security H1: Check file size BEFORE reading into memory
+                let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+                guard let fileSize = attrs[.size] as? Int,
+                      fileSize <= FileTransferLimits.maxVoiceNoteBytes else {
+                    let size = (attrs[.size] as? Int) ?? 0
+                    SecureLogger.warning("Voice note exceeds size limit (\(size) bytes)", category: .session)
                     try? FileManager.default.removeItem(at: url)
                     await MainActor.run {
                         self.handleMediaSendFailure(messageID: messageID, reason: "Voice note too large")
                     }
                     return
                 }
+
+                let data = try Data(contentsOf: url)
                 let packet = BitchatFilePacket(
                     fileName: url.lastPathComponent,
                     fileSize: UInt64(data.count),
@@ -2484,10 +2499,16 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             defer { try? FileManager.default.removeItem(at: sourceURL) }
             var destinationURL: URL?
             do {
-                let data = try Data(contentsOf: sourceURL)
-                guard FileTransferLimits.isValidPayload(data.count) else {
+                // Security H1: Check file size BEFORE reading into memory
+                let attrs = try FileManager.default.attributesOfItem(atPath: sourceURL.path)
+                guard let fileSize = attrs[.size] as? Int else {
+                    throw MediaSendError.encodingFailed
+                }
+                guard FileTransferLimits.isValidPayload(fileSize) else {
                     throw MediaSendError.tooLarge
                 }
+
+                let data = try Data(contentsOf: sourceURL)
 
                 let destination = try self.prepareOutgoingFileCopy(from: sourceURL, data: data)
                 destinationURL = destination
@@ -2690,8 +2711,14 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         let filename = String(message.content.dropFirst(entry.key.count)).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !filename.isEmpty, let base = try? applicationFilesDirectory() else { return }
         let target = base.appendingPathComponent(entry.value, isDirectory: true).appendingPathComponent(filename)
-        if FileManager.default.fileExists(atPath: target.path) {
-            try? FileManager.default.removeItem(at: target)
+
+        // Security: Remove file directly (no TOCTOU race)
+        do {
+            try FileManager.default.removeItem(at: target)
+        } catch CocoaError.fileNoSuchFile {
+            // Expected
+        } catch {
+            SecureLogger.error("Failed to cleanup \(filename): \(error)", category: .session)
         }
     }
 
