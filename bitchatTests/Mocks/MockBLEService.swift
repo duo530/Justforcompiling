@@ -13,10 +13,8 @@ import CoreBluetooth
 /// In-memory BLE test harness used by E2E/Integration tests.
 ///
 /// Design:
-/// - Global `registry` maps `peerID` -> service instance, and `adjacency` tracks
-///   simulated connections between peers. Tests call `simulateConnectedPeer` /
-///   `simulateDisconnectedPeer` to manage topology.
-/// - `resetTestBus()` clears global state and is called in test `setUp()`.
+/// - Topology and routing are delegated to LocalBLETestMesh (per-test, no singletons).
+/// - Tests create a LocalBLETestMesh and pass it to each MockBLEService they create.
 /// - `_testRegister()` registers a node immediately on creation for deterministic routing.
 /// - `messageDeliveryHandler` and `packetDeliveryHandler` let tests observe messages/packets
 ///   as they flow, enabling scenarios like manual encryption/relay.
@@ -37,6 +35,9 @@ final class MockBLEService: NSObject {
     var myNickname: String = "MockUser"
     
     private let mockKeychain = MockKeychain()
+
+    // Mesh is owned by the test; service just holds a reference
+    private unowned let mesh: LocalBLETestMesh
     
     // Test-specific properties
     var sentMessages: [(message: BitchatMessage, packet: BitchatPacket)] = []
@@ -61,7 +62,8 @@ final class MockBLEService: NSObject {
     
     // MARK: - Initialization
     
-    override init() {
+    init(mesh: LocalBLETestMesh) {
+        self.mesh = mesh
         super.init()
     }
     
@@ -71,46 +73,23 @@ final class MockBLEService: NSObject {
         self.myNickname = nickname
     }
     
-    // MARK: - In-memory test bus (for E2E/Integration)
-    /// Global per-process bus for deterministic routing in tests.
-    private static var registry: [String: MockBLEService] = [:]
-    private static var adjacency: [String: Set<String>] = [:]
-
-    /// Clears global bus state. Call from test `setUp()`.
+    // MARK: - Backward compatibility hook
+    /// No-op now; kept to avoid breaking old tests that call it.
     static func resetTestBus() {
-        registry.removeAll()
-        adjacency.removeAll()
+        // Intentionally empty: each test should create a fresh LocalBLETestMesh
     }
 
     /// Registers this instance on first use.
     private func registerIfNeeded() {
-        MockBLEService.registry[myPeerID] = self
-        if MockBLEService.adjacency[myPeerID] == nil { MockBLEService.adjacency[myPeerID] = [] }
+        mesh.register(self, peerID: myPeerID)
     }
 
     /// Returns adjacent neighbors based on the current simulated topology.
     private func neighbors() -> [MockBLEService] {
-        guard let ids = MockBLEService.adjacency[myPeerID] else { return [] }
-        return ids.compactMap { MockBLEService.registry[$0] }
+        mesh.neighbors(of: self)
     }
 
-    /// Adds an undirected edge between two peerIDs.
-    private static func connectPeers(_ a: String, _ b: String) {
-        var setA = adjacency[a] ?? []
-        setA.insert(b)
-        adjacency[a] = setA
-        var setB = adjacency[b] ?? []
-        setB.insert(a)
-        adjacency[b] = setB
-    }
-
-    /// Removes an undirected edge between two peerIDs.
-    private static func disconnectPeers(_ a: String, _ b: String) {
-        if var setA = adjacency[a] { setA.remove(b); adjacency[a] = setA }
-        if var setB = adjacency[b] { setB.remove(a); adjacency[b] = setB }
-    }
-
-    /// Test-only: register this instance on the bus immediately.
+    /// Test-only: register this instance on the mesh immediately.
     func _testRegister() {
         registerIfNeeded()
     }
@@ -179,11 +158,11 @@ final class MockBLEService: NSObject {
             // Surface raw packet to tests that intercept/relay/encrypt
             packetDeliveryHandler?(packet)
 
-            // Deliver public messages to adjacent peers via test bus
+            // Routing handled by mesh
             if recipientID == nil {
-                for neighbor in neighbors() {
-                    neighbor.simulateIncomingPacket(packet)
-                }
+                mesh.routePublicPacket(packet, from: self)
+            } else if let recipient = recipientID {
+                mesh.routePrivatePacket(packet, from: self, toPeerID: recipient)
             }
         }
     }
@@ -224,23 +203,8 @@ final class MockBLEService: NSObject {
             // Surface raw packet to tests that intercept/relay/encrypt
             packetDeliveryHandler?(packet)
 
-            // If directly connected to recipient, deliver only to them.
-            if let neighbors = MockBLEService.adjacency[myPeerID], neighbors.contains(recipientPeerID),
-               let target = MockBLEService.registry[recipientPeerID] {
-                target.simulateIncomingPacket(packet)
-            } else {
-                // Not directly connected: deliver to neighbors for relay; also deliver directly if target is known
-                if let target = MockBLEService.registry[recipientPeerID] {
-                    target.simulateIncomingPacket(packet)
-                }
-                if let neighbors = MockBLEService.adjacency[myPeerID] {
-                    for peer in neighbors where peer != recipientPeerID {
-                        if let neighbor = MockBLEService.registry[peer] {
-                            neighbor.simulateIncomingPacket(packet)
-                        }
-                    }
-                }
-            }
+            // Routing handled by mesh
+            mesh.routePrivatePacket(packet, from: self, toPeerID: recipientPeerID)
         }
     }
     
@@ -285,14 +249,14 @@ final class MockBLEService: NSObject {
     
     func simulateConnectedPeer(_ peerID: String) {
         registerIfNeeded()
-        MockBLEService.connectPeers(myPeerID, peerID)
+        mesh.connect(myPeerID, peerID)
         connectedPeers.insert(peerID)
         delegate?.didConnectToPeer(peerID)
         delegate?.didUpdatePeerList(Array(connectedPeers))
     }
     
     func simulateDisconnectedPeer(_ peerID: String) {
-        MockBLEService.disconnectPeers(myPeerID, peerID)
+        mesh.disconnect(myPeerID, peerID)
         connectedPeers.remove(peerID)
         delegate?.didDisconnectFromPeer(peerID)
         delegate?.didUpdatePeerList(Array(connectedPeers))
@@ -359,8 +323,8 @@ typealias MockSimplifiedBluetoothService = MockBLEService
 // MARK: - Helpers
 
 extension MockBLEService {
-    convenience init(peerID: String, nickname: String) {
-        self.init()
+    convenience init(mesh: LocalBLETestMesh, peerID: String, nickname: String) {
+        self.init(mesh: mesh)
         myPeerID = peerID
         mockNickname = nickname
         _testRegister()
@@ -371,3 +335,4 @@ extension MockBLEService {
         otherPeer.simulateConnectedPeer(myPeerID)
     }
 }
+
