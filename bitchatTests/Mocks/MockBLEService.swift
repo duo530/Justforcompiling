@@ -59,12 +59,6 @@ final class MockBLEService: NSObject {
         return myPeerID
     }
     
-    // MARK: - Initialization
-    
-    override init() {
-        super.init()
-    }
-    
     // MARK: - Methods matching BLEService
     
     func setNickname(_ nickname: String) {
@@ -73,29 +67,20 @@ final class MockBLEService: NSObject {
     
     // MARK: - In-memory test bus (for E2E/Integration)
     /// Global per-process bus for deterministic routing in tests.
-    private static var registry: [String: MockBLEService] = [:]
-    private static var adjacency: [String: Set<String>] = [:]
+    private static var adjacency: [MockBLEService: Set<MockBLEService>] = [:]
 
     /// Clears global bus state. Call from test `setUp()`.
     static func resetTestBus() {
-        registry.removeAll()
         adjacency.removeAll()
     }
 
-    /// Registers this instance on first use.
-    private func registerIfNeeded() {
-        MockBLEService.registry[myPeerID] = self
-        if MockBLEService.adjacency[myPeerID] == nil { MockBLEService.adjacency[myPeerID] = [] }
-    }
-
     /// Returns adjacent neighbors based on the current simulated topology.
-    private func neighbors() -> [MockBLEService] {
-        guard let ids = MockBLEService.adjacency[myPeerID] else { return [] }
-        return ids.compactMap { MockBLEService.registry[$0] }
+    private func neighbors() -> [MockBLEService]? {
+        MockBLEService.adjacency[self].map { Array($0) } ?? []
     }
 
     /// Adds an undirected edge between two peerIDs.
-    private static func connectPeers(_ a: String, _ b: String) {
+    private static func connectPeers(_ a: MockBLEService, _ b: MockBLEService) {
         var setA = adjacency[a] ?? []
         setA.insert(b)
         adjacency[a] = setA
@@ -105,14 +90,9 @@ final class MockBLEService: NSObject {
     }
 
     /// Removes an undirected edge between two peerIDs.
-    private static func disconnectPeers(_ a: String, _ b: String) {
-        if var setA = adjacency[a] { setA.remove(b); adjacency[a] = setA }
-        if var setB = adjacency[b] { setB.remove(a); adjacency[b] = setB }
-    }
-
-    /// Test-only: register this instance on the bus immediately.
-    func _testRegister() {
-        registerIfNeeded()
+    private static func disconnectPeers(_ a: MockBLEService, _ b: MockBLEService) {
+        adjacency[a]?.remove(b)
+        adjacency[b]?.remove(a)
     }
 
     func startServices() {
@@ -180,8 +160,8 @@ final class MockBLEService: NSObject {
             packetDeliveryHandler?(packet)
 
             // Deliver public messages to adjacent peers via test bus
-            if recipientID == nil {
-                for neighbor in neighbors() {
+            if recipientID == nil, let neighbors = neighbors() {
+                for neighbor in neighbors {
                     neighbor.simulateIncomingPacket(packet)
                 }
             }
@@ -225,21 +205,8 @@ final class MockBLEService: NSObject {
             packetDeliveryHandler?(packet)
 
             // If directly connected to recipient, deliver only to them.
-            if let neighbors = MockBLEService.adjacency[myPeerID], neighbors.contains(recipientPeerID),
-               let target = MockBLEService.registry[recipientPeerID] {
+            if let neighbors = neighbors(), let target = neighbors.first(where: { $0.peerID == recipientPeerID }) {
                 target.simulateIncomingPacket(packet)
-            } else {
-                // Not directly connected: deliver to neighbors for relay; also deliver directly if target is known
-                if let target = MockBLEService.registry[recipientPeerID] {
-                    target.simulateIncomingPacket(packet)
-                }
-                if let neighbors = MockBLEService.adjacency[myPeerID] {
-                    for peer in neighbors where peer != recipientPeerID {
-                        if let neighbor = MockBLEService.registry[peer] {
-                            neighbor.simulateIncomingPacket(packet)
-                        }
-                    }
-                }
             }
         }
     }
@@ -283,18 +250,18 @@ final class MockBLEService: NSObject {
     
     // MARK: - Test Helper Methods
     
-    func simulateConnectedPeer(_ peerID: String) {
-        registerIfNeeded()
-        MockBLEService.connectPeers(myPeerID, peerID)
-        connectedPeers.insert(peerID)
-        delegate?.didConnectToPeer(peerID)
+    func simulateConnectedPeer(_ peer: MockBLEService) {
+        // registerIfNeeded()
+        MockBLEService.connectPeers(self, peer)
+        connectedPeers.insert(peer.peerID)
+        delegate?.didConnectToPeer(peer.peerID)
         delegate?.didUpdatePeerList(Array(connectedPeers))
     }
     
-    func simulateDisconnectedPeer(_ peerID: String) {
-        MockBLEService.disconnectPeers(myPeerID, peerID)
-        connectedPeers.remove(peerID)
-        delegate?.didDisconnectFromPeer(peerID)
+    func simulateDisconnectedPeer(_ peer: MockBLEService) {
+        MockBLEService.disconnectPeers(self, peer)
+        connectedPeers.remove(peer.peerID)
+        delegate?.didDisconnectFromPeer(peer.peerID)
         delegate?.didUpdatePeerList(Array(connectedPeers))
     }
     
@@ -327,11 +294,11 @@ final class MockBLEService: NSObject {
                 // broadcast expectations. De-duplication via seenMessageIDs prevents loops.
                 if MockBLEService.autoFloodEnabled,
                    packet.recipientID == nil,
-                   !message.isPrivate {
+                   !message.isPrivate,
+                   let neighbors = neighbors() {
                     let nextTTL = packet.ttl > 0 ? packet.ttl - 1 : 0
-                    for neighbor in neighbors() {
-                        // Avoid immediate echo loopback to sender if known
-                        if let sender = message.senderPeerID, sender == neighbor.peerID { continue }
+                    // Avoid immediate echo loopback to sender if known
+                    for neighbor in neighbors where message.senderPeerID != neighbor.peerID {
                         var relay = packet
                         relay.ttl = nextTTL
                         neighbor.simulateIncomingPacket(relay)

@@ -12,7 +12,7 @@ import CryptoKit
 
 final class IntegrationTests: XCTestCase {
     
-    var nodes: [String: MockBluetoothMeshService] = [:]
+    var nodes: [String: MockBLEService] = [:]
     var noiseManagers: [String: NoiseSessionManager] = [:]
     private var mockKeychain: MockKeychain!
     
@@ -588,10 +588,9 @@ final class IntegrationTests: XCTestCase {
     // MARK: - Helper Methods
     
     private func createNode(_ name: String, peerID: String) {
-        let node = MockBluetoothMeshService()
+        let node = MockBLEService()
         node.myPeerID = peerID
         node.mockNickname = name
-        node._testRegister()
         nodes[name] = node
         
         // Create Noise manager
@@ -601,14 +600,14 @@ final class IntegrationTests: XCTestCase {
     
     private func connect(_ node1: String, _ node2: String) {
         guard let n1 = nodes[node1], let n2 = nodes[node2] else { return }
-        n1.simulateConnectedPeer(n2.peerID)
-        n2.simulateConnectedPeer(n1.peerID)
+        n1.simulateConnectedPeer(n2)
+        n2.simulateConnectedPeer(n1)
     }
     
     private func disconnect(_ node1: String, _ node2: String) {
         guard let n1 = nodes[node1], let n2 = nodes[node2] else { return }
-        n1.simulateDisconnectedPeer(n2.peerID)
-        n2.simulateDisconnectedPeer(n1.peerID)
+        n1.simulateDisconnectedPeer(n2)
+        n2.simulateDisconnectedPeer(n1)
     }
     
     private func connectFullMesh() {
