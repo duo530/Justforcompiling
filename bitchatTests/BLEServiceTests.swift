@@ -14,9 +14,10 @@ import CoreBluetooth
 struct BLEServiceTests {
     private let service: MockBLEService
     private let myUUID = UUID()
+    private let bus = MockBLEBus()
     
     init() {
-        service = MockBLEService()
+        service = MockBLEService.init(bus: bus)
         service.myPeerID = PeerID(str: myUUID.uuidString)
         service.mockNickname = "TestUser"
     }

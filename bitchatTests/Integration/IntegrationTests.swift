@@ -449,7 +449,7 @@ final class IntegrationTests: XCTestCase {
         helper.nodes["Alice"]!.sendMessage("Needs relay to David", mentions: [], to: nil)
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            XCTAssertGreaterThan(metrics["public"]!, 0)
+            XCTAssertGreaterThan(metrics["public"]!, 300)
             XCTAssertGreaterThan(metrics["private"]!, 0)
             XCTAssertGreaterThan(metrics["mentions"]!, 0)
             expectation.fulfill()
