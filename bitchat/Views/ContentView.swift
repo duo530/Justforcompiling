@@ -10,14 +10,14 @@ import SwiftUI
 #if os(iOS)
 import UIKit
 #endif
-#if canImport(PhotosUI)
-import PhotosUI
-#endif
 #if os(macOS)
 import AppKit
 #endif
 import UniformTypeIdentifiers
 import BitLogger
+#if canImport(PhotosUI)
+import PhotosUI
+#endif
 
 // MARK: - Supporting Types
 
@@ -2047,7 +2047,7 @@ private extension ContentView {
                 let tempURL = FileManager.default.temporaryDirectory
                     .appendingPathComponent(UUID().uuidString)
                     .appendingPathExtension("jpg")
-                try data.write(to: tempURL, options: .atomic)
+                try data.write(to: tempURL, options: Data.WritingOptions.atomic)
                 await MainActor.run {
                     viewModel.sendImage(from: tempURL) {
                         try? FileManager.default.removeItem(at: tempURL)
