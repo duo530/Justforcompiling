@@ -73,7 +73,7 @@ struct ContentView: View {
     @State private var recordingTimer: Timer?
     @State private var recordingStartDate: Date?
     @State private var showFileImporter = false
-#if canImport(PhotosUI)
+#if canImport(PhotosUI) && ((os(iOS) && compiler(>=5.7)) || (os(macOS) && compiler(>=5.7)))
     @State private var showPhotoPicker = false
     @State private var selectedPhotoPickerItem: PhotosPickerItem?
 #endif
@@ -210,7 +210,7 @@ struct ContentView: View {
                 FingerprintView(viewModel: viewModel, peerID: peerID.id)
             }
         }
-#if canImport(PhotosUI)
+#if canImport(PhotosUI) && ((os(iOS) && compiler(>=5.7)) || (os(macOS) && compiler(>=5.7)))
         .photosPicker(isPresented: $showPhotoPicker, selection: $selectedPhotoPickerItem, matching: .images)
         .onChange(of: selectedPhotoPickerItem) { newItem in
             guard let item = newItem else { return }
@@ -229,7 +229,7 @@ struct ContentView: View {
             }
         }
         .confirmationDialog("Attach", isPresented: $showAttachmentActions, titleVisibility: .visible) {
-#if canImport(PhotosUI)
+#if canImport(PhotosUI) && ((os(iOS) && compiler(>=5.7)) || (os(macOS) && compiler(>=5.7)))
             Button("Image") {
                 showAttachmentActions = false
                 DispatchQueue.main.async { showPhotoPicker = true }
@@ -2039,7 +2039,7 @@ private extension ContentView {
         }
     }
 
-#if canImport(PhotosUI)
+#if canImport(PhotosUI) && ((os(iOS) && compiler(>=5.7)) || (os(macOS) && compiler(>=5.7)))
     func handlePhotoSelection(_ item: PhotosPickerItem) async {
         defer { Task { @MainActor in selectedPhotoPickerItem = nil } }
         do {
