@@ -2385,7 +2385,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
     @MainActor
     func sendVoiceNote(at url: URL) {
         let targetPeer = selectedPrivateChatPeer
-        let message = enqueueMediaMessage(content: "[voice] \(url.lastPathComponent)", targetPeer: targetPeer)
+        let message = enqueueMediaMessage(content: "[voice] \(url.lastPathComponent)", targetPeer: targetPeer?.id)
         let messageID = message.id
         let transferId = makeTransferID(messageID: messageID)
 
@@ -2457,7 +2457,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 )
                 guard packet.encode() != nil else { throw MediaSendError.encodingFailed }
                 await MainActor.run {
-                    let message = self.enqueueMediaMessage(content: "[image] \(outputURL.lastPathComponent)", targetPeer: targetPeer)
+                    let message = self.enqueueMediaMessage(content: "[image] \(outputURL.lastPathComponent)", targetPeer: targetPeer?.id)
                     let messageID = message.id
                     let transferId = self.makeTransferID(messageID: messageID)
                     self.registerTransfer(transferId: transferId, messageID: messageID)
@@ -2514,7 +2514,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 }
 
                 await MainActor.run {
-                    let message = self.enqueueMediaMessage(content: "[file] \(destination.lastPathComponent)", targetPeer: targetPeer)
+                    let message = self.enqueueMediaMessage(content: "[file] \(destination.lastPathComponent)", targetPeer: targetPeer?.id)
                     let messageID = message.id
                     let transferId = self.makeTransferID(messageID: messageID)
                     self.registerTransfer(transferId: transferId, messageID: messageID)
@@ -2575,9 +2575,9 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 deliveryStatus: .sending
             )
             var chats = privateChats
-            chats[peerID, default: []].append(message)
+            chats[PeerID(str: peerID), default: []].append(message)
             privateChats = chats
-            trimPrivateChatMessagesIfNeeded(for: peerID)
+            trimMessagesIfNeeded()
         } else {
             let (displayName, senderPeerID) = currentPublicSender()
             message = BitchatMessage(
@@ -2588,7 +2588,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 originalSender: nil,
                 isPrivate: false,
                 recipientNickname: nil,
-                senderPeerID: senderPeerID,
+                senderPeerID: PeerID(str: senderPeerID),
                 deliveryStatus: .sending
             )
             messages.append(message)
@@ -2617,21 +2617,21 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         var displaySender = nickname
         var senderPeerID = meshService.myPeerID
         if case .location(let ch) = activeChannel,
-           let identity = try? NostrIdentityBridge.deriveIdentity(forGeohash: ch.geohash) {
+           let identity = try? idBridge.deriveIdentity(forGeohash: ch.geohash) {
             let suffix = String(identity.publicKeyHex.suffix(4))
             displaySender = nickname + "#" + suffix
             let shortKey = identity.publicKeyHex.prefix(TransportConfig.nostrShortKeyDisplayLength)
-            senderPeerID = "nostr:\(shortKey)"
+            senderPeerID = PeerID(str: "nostr:\(shortKey)")
         }
-        return (displaySender, senderPeerID)
+        return (displaySender, senderPeerID.id)
     }
 
     @MainActor
     private func nicknameForPeer(_ peerID: String) -> String {
-        if let name = meshService.peerNickname(peerID: peerID) {
+        if let name = meshService.peerNickname(peerID: PeerID(str: peerID)) {
             return name
         }
-        if let favorite = FavoritesPersistenceService.shared.getFavoriteStatus(forPeerID: peerID),
+        if let favorite = FavoritesPersistenceService.shared.getFavoriteStatus(forPeerID: PeerID(str: peerID)),
            !favorite.peerNickname.isEmpty {
             return favorite.peerNickname
         }
@@ -3801,6 +3801,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                         if let cached = cachedGeohashIdentity, cached.geohash == ch.geohash {
                             return cached.identity
                         }
+                        // Fallback: derive and cache (should rarely happen)
                         if let identity = try? idBridge.deriveIdentity(forGeohash: ch.geohash) {
                             cachedGeohashIdentity = (ch.geohash, identity)
                             return identity
@@ -4138,8 +4139,8 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
     func formatMessageHeader(_ message: BitchatMessage, colorScheme: ColorScheme) -> AttributedString {
         let isSelf: Bool = {
             if let spid = message.senderPeerID {
-                if case .location(let ch) = activeChannel, spid.hasPrefix("nostr:") {
-                    if let myGeo = try? NostrIdentityBridge.deriveIdentity(forGeohash: ch.geohash) {
+                if case .location(let ch) = activeChannel, spid.id.hasPrefix("nostr:") {
+                    if let myGeo = try? idBridge.deriveIdentity(forGeohash: ch.geohash) {
                         return spid == "nostr:\(myGeo.publicKeyHex.prefix(TransportConfig.nostrShortKeyDisplayLength))"
                     }
                 }
@@ -4166,7 +4167,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         senderStyle.foregroundColor = baseColor
         senderStyle.font = .bitchatSystem(size: 14, weight: isSelf ? .bold : .medium, design: .monospaced)
         if let spid = message.senderPeerID,
-           let url = URL(string: "bitchat://user/\(spid.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? spid)") {
+           let url = URL(string: "bitchat://user/\(spid.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? spid.id)") {
             senderStyle.link = url
         }
 

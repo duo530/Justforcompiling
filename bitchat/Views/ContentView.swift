@@ -135,12 +135,20 @@ struct ContentView: View {
     }
 
 // MARK: - Body
-    
+
     var body: some View {
-<<<<<<< HEAD
         VStack(spacing: 0) {
             mainHeaderView
-                .onAppear { viewModel.currentColorScheme = colorScheme }
+                .onAppear {
+                    viewModel.currentColorScheme = colorScheme
+                    #if os(macOS)
+                    // Focus message input on macOS launch, not nickname field
+                    DispatchQueue.main.async {
+                        isNicknameFieldFocused = false
+                        isTextFieldFocused = true
+                    }
+                    #endif
+                }
                 .onChange(of: colorScheme) { newValue in
                     viewModel.currentColorScheme = newValue
                 }
@@ -150,30 +158,6 @@ struct ContentView: View {
             GeometryReader { geometry in
                 VStack(spacing: 0) {
                     messagesView(privatePeer: nil, isAtBottom: $isAtBottomPublic)
-=======
-        GeometryReader { geometry in
-            ZStack {
-                // Base layer - Main public chat (always visible)
-                mainChatView
-                    .onAppear {
-                        viewModel.currentColorScheme = colorScheme
-                        #if os(macOS)
-                        // Focus message input on macOS launch, not nickname field
-                        DispatchQueue.main.async {
-                            isNicknameFieldFocused = false
-                            isTextFieldFocused = true
-                        }
-                        #endif
-                    }
-                    .onChange(of: colorScheme) { newValue in
-                        viewModel.currentColorScheme = newValue
-                    }
-                
-                // Private chat slide-over
-                if viewModel.selectedPrivateChatPeer != nil {
-                    privateChatView
-                        .frame(width: geometry.size.width)
->>>>>>> 49a22aa9 (macOS: Focus message input on launch instead of nickname field)
                         .background(backgroundColor)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -1594,43 +1578,6 @@ extension ContentView {
 // MARK: - Helper Views
 
 // Rounded payment chip button
-private struct PaymentChipView: View {
-    let emoji: String
-    let label: String
-    let colorScheme: ColorScheme
-    let action: () -> Void
-    
-    private var fgColor: Color {
-        colorScheme == .dark ? Color.green : Color(red: 0, green: 0.5, blue: 0)
-    }
-    private var bgColor: Color {
-        colorScheme == .dark ? Color.gray.opacity(0.18) : Color.gray.opacity(0.12)
-    }
-    private var border: Color { fgColor.opacity(0.25) }
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Text(emoji)
-                Text(label)
-                    .font(.bitchatSystem(size: 12, weight: .semibold, design: .monospaced))
-            }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(bgColor)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(border, lineWidth: 1)
-            )
-            .foregroundColor(fgColor)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 //
 
 private enum MessageMedia {
@@ -1745,7 +1692,7 @@ private extension ContentView {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if message.isPrivate && message.sender == viewModel.nickname,
                    let status = message.deliveryStatus {
-                    DeliveryStatusView(status: status, colorScheme: colorScheme)
+                    DeliveryStatusView(status: status)
                         .padding(.leading, 4)
                 }
             }
@@ -1791,7 +1738,7 @@ private extension ContentView {
 
     @ViewBuilder
     private func textMessageRow(_ message: BitchatMessage) -> some View {
-        let cashuTokens = message.content.extractCashuTokens()
+        let cashuTokens = message.content.extractCashuLinks()
         let lightningLinks = message.content.extractLightningLinks()
         let isLong = (message.content.count > TransportConfig.uiLongMessageLengthThreshold || message.content.hasVeryLongToken(threshold: TransportConfig.uiVeryLongTokenThreshold)) && cashuTokens.isEmpty
         let isExpanded = expandedMessageIDs.contains(message.id)
@@ -1805,7 +1752,7 @@ private extension ContentView {
 
                 if message.isPrivate && message.sender == viewModel.nickname,
                    let status = message.deliveryStatus {
-                    DeliveryStatusView(status: status, colorScheme: colorScheme)
+                    DeliveryStatusView(status: status)
                         .padding(.leading, 4)
                 }
             }
@@ -1823,42 +1770,14 @@ private extension ContentView {
 
             if !lightningLinks.isEmpty || !cashuTokens.isEmpty {
                 HStack(spacing: 8) {
-                    ForEach(Array(lightningLinks.prefix(3)).indices, id: \.self) { index in
-                        let link = lightningLinks[index]
-                        PaymentChipView(
-                            emoji: "⚡",
-                            label: L10n.string(
-                                "content.payment.lightning",
-                                comment: "Label for Lightning payment chip"
-                            ),
-                            colorScheme: colorScheme
-                        ) {
-                            #if os(iOS)
-                            if let url = URL(string: link) { UIApplication.shared.open(url) }
-                            #else
-                            if let url = URL(string: link) { NSWorkspace.shared.open(url) }
-                            #endif
-                        }
+                    ForEach(Array(lightningLinks.prefix(3)), id: \.self) { link in
+                        PaymentChipView(paymentType: .lightning(link))
                     }
 
-                    ForEach(Array(cashuTokens.prefix(3)).indices, id: \.self) { index in
-                        let token = cashuTokens[index]
+                    ForEach(Array(cashuTokens.prefix(3)), id: \.self) { token in
                         let enc = token.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-_"))) ?? token
                         let urlStr = "cashu:\(enc)"
-                        PaymentChipView(
-                            emoji: "🥜",
-                            label: L10n.string(
-                                "content.payment.cashu",
-                                comment: "Label for Cashu payment chip"
-                            ),
-                            colorScheme: colorScheme
-                        ) {
-                            #if os(iOS)
-                            if let url = URL(string: urlStr) { UIApplication.shared.open(url) }
-                            #else
-                            if let url = URL(string: urlStr) { NSWorkspace.shared.open(url) }
-                            #endif
-                        }
+                        PaymentChipView(paymentType: .cashu(urlStr))
                     }
                 }
                 .padding(.top, 6)
@@ -1998,21 +1917,12 @@ private extension ContentView {
         .buttonStyle(.plain)
         .disabled(!enabled)
         .accessibilityLabel(
-            L10n.string(
-                "content.accessibility.send_message",
-                comment: "Accessibility label for the send message button"
-            )
+            String(localized: "content.accessibility.send_message", comment: "Accessibility label for the send message button")
         )
         .accessibilityHint(
             enabled
-            ? L10n.string(
-                "content.accessibility.send_hint_ready",
-                comment: "Hint prompting the user to send the message"
-            )
-            : L10n.string(
-                "content.accessibility.send_hint_empty",
-                comment: "Hint prompting the user to enter a message"
-            )
+            ? String(localized: "content.accessibility.send_hint_ready", comment: "Hint prompting the user to send the message")
+            : String(localized: "content.accessibility.send_hint_empty", comment: "Hint prompting the user to enter a message")
         )
     }
 
@@ -2195,109 +2105,6 @@ private extension ContentView {
 }
 
 //
-
-// Delivery status indicator view
-struct DeliveryStatusView: View {
-    let status: DeliveryStatus
-    let colorScheme: ColorScheme
-    
-    // MARK: - Computed Properties
-    
-    private var textColor: Color {
-        colorScheme == .dark ? Color.green : Color(red: 0, green: 0.5, blue: 0)
-    }
-    
-    private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.green.opacity(0.8) : Color(red: 0, green: 0.5, blue: 0).opacity(0.8)
-    }
-
-    private enum Strings {
-        static func delivered(to nickname: String) -> String {
-            L10n.string(
-                "content.delivery.delivered_to",
-                comment: "Tooltip for delivered private messages",
-                nickname
-            )
-        }
-
-        static func read(by nickname: String) -> String {
-            L10n.string(
-                "content.delivery.read_by",
-                comment: "Tooltip for read private messages",
-                nickname
-            )
-        }
-
-        static func failed(_ reason: String) -> String {
-            L10n.string(
-                "content.delivery.failed",
-                comment: "Tooltip for failed message delivery",
-                reason
-            )
-        }
-
-        static func deliveredToMembers(_ reached: Int, _ total: Int) -> String {
-            L10n.string(
-                "content.delivery.delivered_members",
-                comment: "Tooltip for partially delivered messages",
-                reached,
-                total
-            )
-        }
-    }
-    
-    // MARK: - Body
-    
-    var body: some View {
-        switch status {
-        case .sending:
-            Image(systemName: "circle")
-                .font(.bitchatSystem(size: 10))
-                .foregroundColor(secondaryTextColor.opacity(0.6))
-            
-        case .sent:
-            Image(systemName: "checkmark")
-                .font(.bitchatSystem(size: 10))
-                .foregroundColor(secondaryTextColor.opacity(0.6))
-            
-        case .delivered(let nickname, _):
-            HStack(spacing: -2) {
-                Image(systemName: "checkmark")
-                    .font(.bitchatSystem(size: 10))
-                Image(systemName: "checkmark")
-                    .font(.bitchatSystem(size: 10))
-            }
-            .foregroundColor(textColor.opacity(0.8))
-            .help(Strings.delivered(to: nickname))
-            
-        case .read(let nickname, _):
-            HStack(spacing: -2) {
-                Image(systemName: "checkmark")
-                    .font(.bitchatSystem(size: 10, weight: .bold))
-                Image(systemName: "checkmark")
-                    .font(.bitchatSystem(size: 10, weight: .bold))
-            }
-            .foregroundColor(Color(red: 0.0, green: 0.478, blue: 1.0))  // Bright blue
-            .help(Strings.read(by: nickname))
-            
-        case .failed(let reason):
-            Image(systemName: "exclamationmark.triangle")
-                .font(.bitchatSystem(size: 10))
-                .foregroundColor(Color.red.opacity(0.8))
-                .help(Strings.failed(reason))
-            
-        case .partiallyDelivered(let reached, let total):
-            HStack(spacing: 1) {
-                Image(systemName: "checkmark")
-                    .font(.bitchatSystem(size: 10))
-                Text("\(reached)/\(total)")
-                    .font(.bitchatSystem(size: 10, design: .monospaced))
-            }
-            .foregroundColor(secondaryTextColor.opacity(0.6))
-            .help(Strings.deliveredToMembers(reached, total))
-        }
-    }
-}
 
 struct ImagePreviewView: View {
     let url: URL
