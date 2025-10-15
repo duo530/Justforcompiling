@@ -3530,6 +3530,9 @@ extension BLEService {
         case .fragment:
             handleFragment(packet, from: senderID)
             
+        case .fileTransfer:
+            handleFileTransfer(packet, from: senderID.id)
+            
         case .leave:
             handleLeave(packet, from: senderID)
             
