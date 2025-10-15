@@ -1996,7 +1996,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                     }
                     return false
                 }
-            default:
+            case .mesh:
                 break
             }
         }
@@ -3095,7 +3095,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             switch sessionState {
             case .none, .failed:
                 meshService.triggerHandshake(with: peerID)
-            default:
+            case .handshakeQueued, .handshaking, .established:
                 break
             }
         } else {
@@ -3115,7 +3115,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                         case .read, .delivered:
                             sentReadReceipts.insert(message.id)
                             privateChatManager.sentReadReceipts.insert(message.id)
-                        default:
+                        case .failed, .partiallyDelivered, .sending, .sent:
                             break
                         }
                     }
@@ -3345,7 +3345,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 case .established:
                     // Send the message directly without going through sendPrivateMessage to avoid local echo
                     messageRouter.sendPrivate(screenshotMessage, to: peerID, recipientNickname: peerNickname, messageID: UUID().uuidString)
-                default:
+                case  .none, .failed, .handshakeQueued, .handshaking:
                     // Don't send screenshot notification if no session exists
                     SecureLogger.debug("Skipping screenshot notification to \(peerID) - no established session", category: .security)
                 }
@@ -3608,7 +3608,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 nostrKeyMapping[convKey] = pub
                 return convKey
             }
-        default:
+        case .mesh:
             break
         }
         // Fallback to mesh nickname resolution
@@ -6709,7 +6709,7 @@ private func checkForMentions(_ message: BitchatMessage) {
                 let d = String(id.publicKeyHex.suffix(4))
                 tokens.append(nickname + "#" + d)
             }
-        default:
+        case .mesh:
             break
         }
         #endif

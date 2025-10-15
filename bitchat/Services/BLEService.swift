@@ -728,7 +728,7 @@ final class BLEService: NSObject {
         switch MessageType(rawValue: type) {
         case .noiseEncrypted, .noiseHandshake:
             return true
-        default:
+        case .none, .announce, .message, .leave, .requestSync, .fragment, .fileTransfer:
             return false
         }
     }
@@ -1271,7 +1271,7 @@ final class BLEService: NSObject {
         case .leave:
             handleLeave(packet, from: PeerID(str: senderID))
             
-        default:
+        case .none:
             SecureLogger.warning("⚠️ Unknown message type: \(packet.type)", category: .session)
             break
         }
@@ -3536,7 +3536,7 @@ extension BLEService {
         case .leave:
             handleLeave(packet, from: senderID)
             
-        default:
+        case .none:
             SecureLogger.warning("⚠️ Unknown message type: \(packet.type)", category: .session)
             break
         }
@@ -3964,7 +3964,7 @@ extension BLEService {
                 notifyUI { [weak self] in
                     self?.delegate?.didReceiveNoisePayload(from: peerID, type: .verifyResponse, payload: Data(payloadData), timestamp: ts)
                 }
-            default:
+            case .none:
                 SecureLogger.warning("⚠️ Unknown noise payload type: \(payloadType)")
             }
         } catch NoiseEncryptionError.sessionNotEstablished {
