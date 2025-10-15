@@ -107,9 +107,7 @@ struct NotificationStreamAssemblerTests {
             mimeType: "application/octet-stream",
             content: largeContent
         )
-        guard let tlvPayload = filePacket.encode() else {
-            return XCTFail("Failed to encode file packet")
-        }
+        let tlvPayload = try #require(filePacket.encode(), "Failed to encode file packet")
 
         let senderID = Data(repeating: 0xAA, count: BinaryProtocol.senderIDSize)
         let packet = BitchatPacket(
@@ -123,39 +121,31 @@ struct NotificationStreamAssemblerTests {
             version: 2
         )
 
-        guard let frame = packet.toBinaryData(padding: false) else {
-            return XCTFail("Failed to encode packet frame")
-        }
+        let frame = try #require(packet.toBinaryData(padding: false), "Failed to encode packet frame")
 
-        XCTAssertLessThan(BinaryProtocol.Offsets.flags, frame.count)
+        #expect(BinaryProtocol.Offsets.flags < frame.count)
         let flags = frame[frame.startIndex + BinaryProtocol.Offsets.flags]
-        XCTAssertNotEqual(flags & BinaryProtocol.Flags.isCompressed, 0, "Frame should be compressed for large payloads")
+        #expect((flags & BinaryProtocol.Flags.isCompressed) != 0, "Frame should be compressed for large payloads")
 
         let splitIndex = min(4096, frame.count / 2)
         var result = assembler.append(frame.prefix(splitIndex))
-        XCTAssertTrue(result.frames.isEmpty)
+        #expect(result.frames.isEmpty)
 
         result = assembler.append(frame.suffix(from: splitIndex))
-        XCTAssertEqual(result.frames.count, 1)
-        XCTAssertTrue(result.droppedPrefixes.isEmpty)
-        XCTAssertFalse(result.reset)
+        #expect(result.frames.count == 1)
+        #expect(result.droppedPrefixes.isEmpty)
+        #expect(result.reset == false)
 
-        guard let assembled = result.frames.first else {
-            return XCTFail("Missing assembled frame")
-        }
-        XCTAssertEqual(assembled.count, frame.count)
+        let assembled = try #require(result.frames.first, "Missing assembled frame")
+        #expect(assembled.count == frame.count)
 
-        guard let decodedPacket = BinaryProtocol.decode(assembled) else {
-            return XCTFail("Failed to decode compressed frame")
-        }
-        XCTAssertEqual(decodedPacket.payload.count, tlvPayload.count)
+        let decodedPacket = try #require(BinaryProtocol.decode(assembled), "Failed to decode compressed frame")
+        #expect(decodedPacket.payload.count == tlvPayload.count)
 
-        guard let decodedFile = BitchatFilePacket.decode(decodedPacket.payload) else {
-            return XCTFail("Failed to decode TLV payload")
-        }
-        XCTAssertEqual(decodedFile.fileName, filePacket.fileName)
-        XCTAssertEqual(decodedFile.mimeType, filePacket.mimeType)
-        XCTAssertEqual(decodedFile.content.count, largeContent.count)
-        XCTAssertEqual(decodedFile.content.prefix(32), largeContent.prefix(32))
+        let decodedFile = try #require(BitchatFilePacket.decode(decodedPacket.payload), "Failed to decode TLV payload")
+        #expect(decodedFile.fileName == filePacket.fileName)
+        #expect(decodedFile.mimeType == filePacket.mimeType)
+        #expect(decodedFile.content.count == largeContent.count)
+        #expect(decodedFile.content.prefix(32) == largeContent.prefix(32))
     }
 }
