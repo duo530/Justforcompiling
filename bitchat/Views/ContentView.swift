@@ -821,9 +821,8 @@ struct ContentView: View {
                                 privatePeer: String?,
                                 isAtBottom: Binding<Bool>) {
         let targetID: String? = {
-            if let peer = privatePeer,
-               let peerID = PeerID(str: peer),
-               let last = viewModel.getPrivateChatMessages(for: peerID).suffix(300).last?.id {
+            if let peer = PeerID(str: privatePeer),
+               let last = viewModel.getPrivateChatMessages(for: peer).suffix(300).last?.id {
                 return "dm:\(peer)|\(last)"
             }
             let contextKey: String = {
@@ -848,9 +847,8 @@ struct ContentView: View {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             let secondTarget: String? = {
-                if let peer = privatePeer,
-                   let peerID = PeerID(str: peer),
-                   let last = viewModel.getPrivateChatMessages(for: peerID).suffix(300).last?.id {
+                if let peer = PeerID(str: privatePeer),
+                   let last = viewModel.getPrivateChatMessages(for: peer).suffix(300).last?.id {
                     return "dm:\(peer)|\(last)"
                 }
                 let contextKey: String = {
