@@ -21,28 +21,27 @@ extension String {
         var sanitized = self
         
         // Remove full fingerprints (keep first 8 chars for debugging)
-        let fingerprintPattern = #/[a-fA-F0-9]{64}/#
-        sanitized = sanitized.replacing(fingerprintPattern) { match in
-            let fingerprint = String(match.output)
+        sanitized = sanitized.replacing("[a-fA-F0-9]{64}") { match, nsString in
+            let fingerprint = nsString.substring(with: match.range)
             return String(fingerprint.prefix(8)) + "..."
         }
         
         // Remove base64 encoded data that might be keys
-        let base64Pattern = #/[A-Za-z0-9+/]{40,}={0,2}/#
-        sanitized = sanitized.replacing(base64Pattern) { _ in
+        sanitized = sanitized.replacing("[A-Za-z0-9+/]{40,}={0,2}") { (_, _) in
             "<base64-data>"
         }
         
         // Remove potential passwords (assuming they're in quotes or after "password:")
-        let passwordPattern = #/password["\s:=]+["']?[^"'\s]+["']?/#
-        sanitized = sanitized.replacing(passwordPattern) { _ in
+        sanitized = sanitized.replacing(#"password["\s:=]+["']?[^"'\s]+["']?"#) { (_, _) in
             "password: <redacted>"
         }
         
         // Truncate peer IDs to first 8 characters
-        let peerIDPattern = #/peerID: ([a-zA-Z0-9]{8})[a-zA-Z0-9]+/#
-        sanitized = sanitized.replacing(peerIDPattern) { match in
-            "peerID: \(match.1)..."
+        sanitized = sanitized.replacing(#"peerID: ([a-zA-Z0-9]{8})[a-zA-Z0-9]+"#) { match, nsString in
+            if let peerID = match.group(1, in: nsString) {
+                return "peerID: \(peerID)..."
+            }
+            return nsString.substring(with: match.range) // fallback if no capture
         }
         
         // Cache the result
@@ -64,4 +63,37 @@ private extension String {
         cache.countLimit = 100 // Keep last 100 sanitized strings
         return cache
     }()
+}
+
+// MARK: - Regex Helper
+
+private extension String {
+    func replacing(_ pattern: String, with replacement: (NSTextCheckingResult, NSString) -> String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return self }
+        let nsString = self as NSString
+        let range = NSRange(location: 0, length: nsString.length)
+        let matches = regex.matches(in: self, range: range)
+        guard !matches.isEmpty else { return self }
+        var result = ""
+        var lastIndex = 0
+        for match in matches {
+            let range = match.range
+            if range.location > lastIndex {
+                result += nsString.substring(with: NSRange(location: lastIndex, length: range.location - lastIndex))
+            }
+            result += replacement(match, nsString)
+            lastIndex = range.location + range.length
+        }
+        if lastIndex < nsString.length {
+            result += nsString.substring(from: lastIndex)
+        }
+        return result
+    }
+}
+
+private extension NSTextCheckingResult {
+    func group(_ index: Int, in nsString: NSString) -> String? {
+        let range = self.range(at: index)
+        return range.location != NSNotFound ? nsString.substring(with: range) : nil
+    }
 }

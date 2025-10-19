@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "BitLogger",
     platforms: [
-        .iOS(.v16),
+        .iOS(.v15),
         .macOS(.v13)
     ],
     products: [

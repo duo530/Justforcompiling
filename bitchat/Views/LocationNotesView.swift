@@ -239,11 +239,21 @@ struct LocationNotesView: View {
 
     private var inputSection: some View {
         HStack(alignment: .top, spacing: 10) {
-            TextField(Strings.addPlaceholder, text: $draft, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.bitchatSystem(size: 14, design: .monospaced))
-                .lineLimit(maxDraftLines, reservesSpace: true)
-                .padding(.vertical, 6)
+            // iOS 16+ multiline TextField with axis and reservesSpace
+            if #available(iOS 16.0, macOS 13.0, *) {
+                TextField(Strings.addPlaceholder, text: $draft, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.bitchatSystem(size: 14, design: .monospaced))
+                    .lineLimit(maxDraftLines, reservesSpace: true)
+                    .padding(.vertical, 6)
+            } else {
+                // Fallback: legacy TextField (single-line) without reservesSpace
+                TextField(Strings.addPlaceholder, text: $draft)
+                    .textFieldStyle(.plain)
+                    .font(.bitchatSystem(size: 14, design: .monospaced))
+                    .lineLimit(1)
+                    .padding(.vertical, 6)
+            }
             Button(action: send) {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.bitchatSystem(size: 20))
