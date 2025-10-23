@@ -167,17 +167,15 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
 
     @MainActor
     private func normalizedSenderKey(for message: BitchatMessage) -> String {
-        if let spid = message.senderPeerID {
-            if spid.isGeoChat || spid.isGeoDM {
-                let full = (nostrKeyMapping[spid] ?? spid.bare).lowercased()
-                return "nostr:" + full
-            } else if spid.id.count == 16, let full = getNoiseKeyForShortID(spid)?.id.lowercased() {
-                return "noise:" + full
-            } else {
-                return "mesh:" + spid.id.lowercased()
-            }
+        let spid = message.senderPeerID
+        if spid.isGeoChat || spid.isGeoDM {
+            let full = (nostrKeyMapping[spid] ?? spid.bare).lowercased()
+            return "nostr:" + full
+        } else if spid.id.count == 16, let full = getNoiseKeyForShortID(spid)?.id.lowercased() {
+            return "noise:" + full
+        } else {
+            return "mesh:" + spid.id.lowercased()
         }
-        return "name:" + message.sender.lowercased()
     }
 
     private func normalizedContentKey(_ content: String) -> String {
@@ -1054,10 +1052,10 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         let msg = BitchatMessage(
             id: event.id,
             sender: senderName,
+            senderPeerID: PeerID(nostr: event.pubkey),
             content: content,
             timestamp: timestamp,
             isRelay: false,
-            senderPeerID: PeerID(nostr: event.pubkey),
             mentions: mentions.isEmpty ? nil : mentions
         )
         Task { @MainActor in
@@ -1123,12 +1121,12 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         let msg = BitchatMessage(
             id: messageId,
             sender: senderName,
+            senderPeerID: convKey,
             content: pm.content,
             timestamp: messageTimestamp,
             isRelay: false,
             isPrivate: true,
             recipientNickname: nickname,
-            senderPeerID: convKey,
             deliveryStatus: .delivered(to: nickname, at: Date())
         )
         
@@ -1497,10 +1495,10 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         let message = BitchatMessage(
             id: messageID,
             sender: displaySender,
+            senderPeerID: localSenderPeerID,
             content: trimmed,
             timestamp: messageTimestamp,
             isRelay: false,
-            senderPeerID: localSenderPeerID,
             mentions: mentions.isEmpty ? nil : mentions
         )
 
@@ -1743,10 +1741,10 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         let msg = BitchatMessage(
             id: event.id,
             sender: senderName,
+            senderPeerID: PeerID(nostr: event.pubkey),
             content: content,
             timestamp: min(rawTs, Date()),
             isRelay: false,
-            senderPeerID: PeerID(nostr: event.pubkey),
             mentions: mentions.isEmpty ? nil : mentions
         )
         
@@ -1841,12 +1839,12 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         let msg = BitchatMessage(
             id: messageId,
             sender: senderName,
+            senderPeerID: convKey,
             content: pm.content,
             timestamp: messageTimestamp,
             isRelay: false,
             isPrivate: true,
             recipientNickname: nickname,
-            senderPeerID: convKey,
             deliveryStatus: .delivered(to: nickname, at: Date())
         )
         
@@ -2032,7 +2030,8 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         if let gh = currentGeohash {
             if var arr = geoTimelines[gh] {
                 arr.removeAll { msg in
-                    if let spid = msg.senderPeerID, spid.isGeoDM || spid.isGeoChat {
+                    let spid = msg.senderPeerID
+                    if spid.isGeoDM || spid.isGeoChat {
                         if let full = nostrKeyMapping[spid]?.lowercased() { return full == hex }
                     }
                     return false
@@ -2043,7 +2042,8 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             switch activeChannel {
             case .location:
                 messages.removeAll { msg in
-                    if let spid = msg.senderPeerID , spid.isGeoDM || spid.isGeoChat {
+                    let spid = msg.senderPeerID
+                    if spid.isGeoDM || spid.isGeoChat {
                         if let full = nostrKeyMapping[spid]?.lowercased() { return full == hex }
                     }
                     return false
@@ -2189,10 +2189,10 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             let msg = BitchatMessage(
                 id: event.id,
                 sender: senderName,
+                senderPeerID: PeerID(nostr: event.pubkey),
                 content: content,
                 timestamp: ts,
                 isRelay: false,
-                senderPeerID: PeerID(nostr: event.pubkey),
                 mentions: mentions.isEmpty ? nil : mentions
             )
             if !arr.contains(where: { $0.id == msg.id }) {
@@ -2306,13 +2306,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         let message = BitchatMessage(
             id: messageID,
             sender: nickname,
+            senderPeerID: meshService.myPeerID,
             content: content,
             timestamp: Date(),
             isRelay: false,
             originalSender: nil,
             isPrivate: true,
             recipientNickname: recipientNickname,
-            senderPeerID: meshService.myPeerID,
             mentions: nil,
             deliveryStatus: .sending
         )
@@ -2364,12 +2364,12 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         let message = BitchatMessage(
             id: messageID,
             sender: nickname,
+            senderPeerID: meshService.myPeerID,
             content: content,
             timestamp: Date(),
             isRelay: false,
             isPrivate: true,
             recipientNickname: nickname,
-            senderPeerID: meshService.myPeerID,
             deliveryStatus: .sending
         )
         
@@ -2577,13 +2577,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         if let peerID = targetPeer {
             message = BitchatMessage(
                 sender: nickname,
+                senderPeerID: meshService.myPeerID,
                 content: content,
                 timestamp: timestamp,
                 isRelay: false,
                 originalSender: nil,
                 isPrivate: true,
                 recipientNickname: nicknameForPeer(peerID),
-                senderPeerID: meshService.myPeerID,
                 deliveryStatus: .sending
             )
             var chats = privateChats
@@ -2594,13 +2594,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             let (displayName, senderPeerID) = currentPublicSender()
             message = BitchatMessage(
                 sender: displayName,
+                senderPeerID: senderPeerID,
                 content: content,
                 timestamp: timestamp,
                 isRelay: false,
                 originalSender: nil,
                 isPrivate: false,
                 recipientNickname: nil,
-                senderPeerID: senderPeerID,
                 deliveryStatus: .sending
             )
             messages.append(message)
@@ -2820,13 +2820,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
     func addLocalPrivateSystemMessage(_ content: String, to peerID: PeerID) {
         let systemMessage = BitchatMessage(
             sender: "system",
+            senderPeerID: meshService.myPeerID,
             content: content,
             timestamp: Date(),
             isRelay: false,
             originalSender: nil,
             isPrivate: true,
-            recipientNickname: meshService.peerNickname(peerID: peerID),
-            senderPeerID: meshService.myPeerID
+            recipientNickname: meshService.peerNickname(peerID: peerID)
         )
         if privateChats[peerID] == nil { privateChats[peerID] = [] }
         privateChats[peerID]?.append(systemMessage)
@@ -2929,13 +2929,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                             let updatedMessage = BitchatMessage(
                                 id: message.id,
                                 sender: message.sender,
+                                senderPeerID: message.senderPeerID == meshService.myPeerID ? meshService.myPeerID : peerID,  // Update peer ID if it's from them
                                 content: message.content,
                                 timestamp: message.timestamp,
                                 isRelay: message.isRelay,
                                 originalSender: message.originalSender,
                                 isPrivate: message.isPrivate,
                                 recipientNickname: message.recipientNickname,
-                                senderPeerID: message.senderPeerID == meshService.myPeerID ? meshService.myPeerID : peerID,  // Update peer ID if it's from them
                                 mentions: message.mentions,
                                 deliveryStatus: message.deliveryStatus
                             )
@@ -3017,13 +3017,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                             let updatedMessage = BitchatMessage(
                                 id: message.id,
                                 sender: message.sender,
+                                senderPeerID: peerID,  // Update to match current peer
                                 content: message.content,
                                 timestamp: message.timestamp,
                                 isRelay: message.isRelay,
                                 originalSender: message.originalSender,
                                 isPrivate: message.isPrivate,
                                 recipientNickname: message.recipientNickname,
-                                senderPeerID: peerID,  // Update to match current peer
                                 mentions: message.mentions,
                                 deliveryStatus: message.deliveryStatus
                             )
@@ -3104,10 +3104,9 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         guard let message = notification.userInfo?["message"] as? BitchatMessage else { return }
         
         // Store the Nostr pubkey if provided (for messages from unknown senders)
-        if let nostrPubkey = notification.userInfo?["nostrPubkey"] as? String,
-           let senderPeerID = message.senderPeerID {
+        if let nostrPubkey = notification.userInfo?["nostrPubkey"] as? String {
             // Store mapping for read receipts
-            nostrKeyMapping[senderPeerID] = nostrPubkey
+            nostrKeyMapping[message.senderPeerID] = nostrPubkey
         }
         
         // Process the Nostr message through the same flow as Bluetooth messages
@@ -3239,16 +3238,16 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                 // Create system message
                 let systemMessage = BitchatMessage(
                     id: UUID().uuidString,
-                sender: "System",
-                content: "\(peerNickname) \(action) you",
-                timestamp: Date(),
-                isRelay: false,
-                originalSender: nil,
-                isPrivate: false,
-                recipientNickname: nil,
-                senderPeerID: nil,
-                mentions: nil
-            )
+                    sender: "System",
+                    senderPeerID: .system,
+                    content: "\(peerNickname) \(action) you",
+                    timestamp: Date(),
+                    isRelay: false,
+                    originalSender: nil,
+                    isPrivate: false,
+                    recipientNickname: nil,
+                    mentions: nil
+                )
             
             // Add to message stream
             addMessage(systemMessage)
@@ -3316,13 +3315,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             // Show local notification immediately as system message (only in chat)
             let localNotification = BitchatMessage(
                 sender: "system",
+                senderPeerID: meshService.myPeerID,
                 content: "you took a screenshot",
                 timestamp: Date(),
                 isRelay: false,
                 originalSender: nil,
                 isPrivate: true,
-                recipientNickname: meshService.peerNickname(peerID: peerID),
-                senderPeerID: meshService.myPeerID
+                recipientNickname: meshService.peerNickname(peerID: peerID)
             )
             var chats = privateChats
             if chats[peerID] == nil {
@@ -3368,6 +3367,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             // Show local notification immediately as system message (only in chat)
             let localNotification = BitchatMessage(
                 sender: "system",
+                senderPeerID: .system,
                 content: "you took a screenshot",
                 timestamp: Date(),
                 isRelay: false
@@ -3756,30 +3756,25 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
     func formatMessageAsText(_ message: BitchatMessage, colorScheme: ColorScheme) -> AttributedString {
         // Determine if this message was sent by self (mesh, geo, or DM)
         let isSelf: Bool = {
-            if let spid = message.senderPeerID {
-                // In geohash channels, compare against our per-geohash nostr short ID
-                if case .location(let ch) = activeChannel, spid.isGeoChat {
-                    let myGeo: NostrIdentity? = {
-                        if let cached = cachedGeohashIdentity, cached.geohash == ch.geohash {
-                            return cached.identity
-                        }
-                        // Fallback: derive and cache (should rarely happen)
-                        if let identity = try? idBridge.deriveIdentity(forGeohash: ch.geohash) {
-                            cachedGeohashIdentity = (ch.geohash, identity)
-                            return identity
-                        }
-                        return nil
-                    }()
-                    if let myGeo {
-                        return spid == PeerID(nostr: myGeo.publicKeyHex)
+            let spid = message.senderPeerID
+            // In geohash channels, compare against our per-geohash nostr short ID
+            if case .location(let ch) = activeChannel, spid.isGeoChat {
+                let myGeo: NostrIdentity? = {
+                    if let cached = cachedGeohashIdentity, cached.geohash == ch.geohash {
+                        return cached.identity
                     }
+                    // Fallback: derive and cache (should rarely happen)
+                    if let identity = try? idBridge.deriveIdentity(forGeohash: ch.geohash) {
+                        cachedGeohashIdentity = (ch.geohash, identity)
+                        return identity
+                    }
+                    return nil
+                }()
+                if let myGeo {
+                    return spid == PeerID(nostr: myGeo.publicKeyHex)
                 }
-                return spid == meshService.myPeerID
             }
-            // Fallback by nickname
-            if message.sender == nickname { return true }
-            if message.sender.hasPrefix(nickname + "#") { return true }
-            return false
+            return spid == meshService.myPeerID
         }()
         // Check cache first (key includes dark mode + self flag)
         let isDark = colorScheme == .dark
@@ -3802,7 +3797,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             let fontWeight: Font.Weight = isSelf ? .bold : .medium
             senderStyle.font = .bitchatSystem(size: 14, weight: fontWeight, design: .monospaced)
             // Make sender clickable: encode senderPeerID into a custom URL
-            if let spid = message.senderPeerID, let url = URL(string: "bitchat://user/\(spid.toPercentEncoded())") {
+            if let url = URL(string: "bitchat://user/\(message.senderPeerID.toPercentEncoded())") {
                 senderStyle.link = url
             }
 
@@ -4100,17 +4095,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
     @MainActor
     func formatMessageHeader(_ message: BitchatMessage, colorScheme: ColorScheme) -> AttributedString {
         let isSelf: Bool = {
-            if let spid = message.senderPeerID {
-                if case .location(let ch) = activeChannel, spid.id.hasPrefix("nostr:") {
-                    if let myGeo = try? idBridge.deriveIdentity(forGeohash: ch.geohash) {
-                        return spid == PeerID(nostr: myGeo.publicKeyHex)
-                    }
+            let spid = message.senderPeerID
+            if case .location(let ch) = activeChannel, spid.id.hasPrefix("nostr:") {
+                if let myGeo = try? idBridge.deriveIdentity(forGeohash: ch.geohash) {
+                    return spid == PeerID(nostr: myGeo.publicKeyHex)
                 }
-                return spid == meshService.myPeerID
             }
-            if message.sender == nickname { return true }
-            if message.sender.hasPrefix(nickname + "#") { return true }
-            return false
+            return spid == meshService.myPeerID
         }()
 
         let isDark = colorScheme == .dark
@@ -4128,8 +4119,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         var senderStyle = AttributeContainer()
         senderStyle.foregroundColor = baseColor
         senderStyle.font = .bitchatSystem(size: 14, weight: isSelf ? .bold : .medium, design: .monospaced)
-        if let spid = message.senderPeerID,
-           let url = URL(string: "bitchat://user/\(spid.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? spid.id)") {
+        if let url = URL(string: "bitchat://user/\(message.senderPeerID.toPercentEncoded())") {
             senderStyle.link = url
         }
 
@@ -4349,19 +4339,16 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
 
     @MainActor
     private func peerColor(for message: BitchatMessage, isDark: Bool) -> Color {
-        if let spid = message.senderPeerID {
-            if spid.isGeoChat || spid.isGeoDM {
-                let full = nostrKeyMapping[spid]?.lowercased() ?? spid.bare.lowercased()
-                return getNostrPaletteColor(for: full, isDark: isDark)
-            } else if spid.id.count == 16 {
-                // Mesh short ID
-                return getPeerPaletteColor(for: spid, isDark: isDark)
-            } else {
-                return getPeerPaletteColor(for: PeerID(str: spid.id.lowercased()), isDark: isDark)
-            }
+        let spid = message.senderPeerID
+        if spid.isGeoChat || spid.isGeoDM {
+            let full = nostrKeyMapping[spid]?.lowercased() ?? spid.bare.lowercased()
+            return getNostrPaletteColor(for: full, isDark: isDark)
+        } else if spid.id.count == 16 {
+            // Mesh short ID
+            return getPeerPaletteColor(for: spid, isDark: isDark)
+        } else {
+            return getPeerPaletteColor(for: PeerID(str: spid.id.lowercased()), isDark: isDark)
         }
-        // Fallback when we only have a display name
-        return Color(peerSeed: message.sender.lowercased(), isDark: isDark)
     }
 
     // Public helpers for views to color peers consistently in lists
@@ -4950,13 +4937,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             let msg = BitchatMessage(
                 id: pm.messageID,
                 sender: senderName,
+                senderPeerID: peerID,
                 content: pm.content,
                 timestamp: timestamp,
                 isRelay: false,
                 originalSender: nil,
                 isPrivate: true,
                 recipientNickname: nickname,
-                senderPeerID: peerID,
                 mentions: pmMentions.isEmpty ? nil : pmMentions
             )
                 handlePrivateMessage(msg)
@@ -5057,13 +5044,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             let msg = BitchatMessage(
                 id: UUID().uuidString,
                 sender: nickname,
+                senderPeerID: peerID,
                 content: normalized,
                 timestamp: timestamp,
                 isRelay: false,
                 originalSender: nil,
                 isPrivate: false,
                 recipientNickname: nil,
-                senderPeerID: peerID,
                 mentions: publicMentions.isEmpty ? nil : publicMentions
             )
             handlePublicMessage(msg)
@@ -5163,13 +5150,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
                     let updated = BitchatMessage(
                         id: msg.id,
                         sender: msg.sender,
+                        senderPeerID: msg.senderPeerID == meshService.myPeerID ? meshService.myPeerID : stableKeyHex,
                         content: msg.content,
                         timestamp: msg.timestamp,
                         isRelay: msg.isRelay,
                         originalSender: msg.originalSender,
                         isPrivate: msg.isPrivate,
                         recipientNickname: msg.recipientNickname,
-                        senderPeerID: msg.senderPeerID == meshService.myPeerID ? meshService.myPeerID : stableKeyHex,
                         mentions: msg.mentions,
                         deliveryStatus: msg.deliveryStatus
                     )
@@ -5430,6 +5417,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
     private func addSystemMessage(_ content: String, timestamp: Date = Date()) {
         let systemMessage = BitchatMessage(
             sender: "system",
+            senderPeerID: .system,
             content: content,
             timestamp: timestamp,
             isRelay: false
@@ -5443,6 +5431,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
     private func addMeshOnlySystemMessage(_ content: String) {
         let systemMessage = BitchatMessage(
             sender: "system",
+            senderPeerID: .system,
             content: content,
             timestamp: Date(),
             isRelay: false
@@ -5463,6 +5452,7 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
     func addPublicSystemMessage(_ content: String) {
         let systemMessage = BitchatMessage(
             sender: "system",
+            senderPeerID: .system,
             content: content,
             timestamp: Date(),
             isRelay: false
@@ -5696,12 +5686,12 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         let message = BitchatMessage(
             id: messageId,
             sender: senderNickname,
+            senderPeerID: targetPeerID,
             content: messageContent,
             timestamp: messageTimestamp,
             isRelay: false,
             isPrivate: true,
             recipientNickname: nickname,
-            senderPeerID: targetPeerID,
             deliveryStatus: .delivered(to: nickname, at: Date())
         )
         
@@ -6029,13 +6019,13 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
             return BitchatMessage(
                 id: message.id,
                 sender: "system",
+                senderPeerID: message.senderPeerID,
                 content: String(message.content.dropFirst(2).dropLast(2)), // Remove * * wrapper
                 timestamp: message.timestamp,
                 isRelay: message.isRelay,
                 originalSender: message.originalSender,
                 isPrivate: message.isPrivate,
                 recipientNickname: message.recipientNickname,
-                senderPeerID: message.senderPeerID,
                 mentions: message.mentions,
                 deliveryStatus: message.deliveryStatus
             )
@@ -6285,11 +6275,11 @@ final class ChatViewModel: ObservableObject, BitchatDelegate {
         if isMessageBlocked(finalMessage) { return }
 
         // Classify origin: geochat if senderPeerID starts with 'nostr:', else mesh (or system)
-        let isGeo = finalMessage.senderPeerID?.isGeoChat == true
+        let isGeo = finalMessage.senderPeerID.isGeoChat
 
         // Apply per-sender and per-content rate limits (drop if exceeded)
         // Treat action-style system messages (which carry a senderPeerID) the same as regular user messages
-        let shouldRateLimit = finalMessage.sender != "system" || finalMessage.senderPeerID != nil
+        let shouldRateLimit = finalMessage.sender != "system" || finalMessage.senderPeerID != .system
         if shouldRateLimit {
             let senderKey = normalizedSenderKey(for: finalMessage)
             let contentKey = normalizedContentKey(finalMessage.content)

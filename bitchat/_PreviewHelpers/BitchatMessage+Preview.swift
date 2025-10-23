@@ -13,13 +13,13 @@ extension BitchatMessage {
         BitchatMessage(
             id: UUID().uuidString,
             sender: "John Doe",
+            senderPeerID: PeerID(str: "abc123"),
             content: "Hello",
             timestamp: Date(),
             isRelay: false,
             originalSender: nil,
             isPrivate: false,
             recipientNickname: "Jane Doe",
-            senderPeerID: nil,
             mentions: nil,
             deliveryStatus: .sent
         )

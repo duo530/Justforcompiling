@@ -32,6 +32,8 @@ struct PeerID: Equatable, Hashable {
     /// Returns the full `id` value by combining `(prefix + bare)`
     var id: String { prefix.rawValue + bare }
     
+    static var system: PeerID { PeerID(str: "0") }
+    
     // Private so the callers have to go through a convenience init
     private init(prefix: Prefix, bare: any StringProtocol) {
         self.prefix = prefix
@@ -68,8 +70,8 @@ extension PeerID {
     }
     
     /// Convenience init to create PeerID by converting Data to String
-    init?(data: Data) {
-        self.init(str: String(data: data, encoding: .utf8))
+    init(data: Data) {
+        self.init(str: String(decoding: data, as: UTF8.self))
     }
     
     /// Convenience init to "hide" hex-encoding implementation detail

@@ -95,11 +95,11 @@ final class PrivateChatManager: ObservableObject {
     // MARK: - Private Methods
     
     private func sendReadReceipt(for message: BitchatMessage) {
-        guard !sentReadReceipts.contains(message.id),
-              let senderPeerID = message.senderPeerID else {
+        guard !sentReadReceipts.contains(message.id) else {
             return
         }
         
+        let senderPeerID = message.senderPeerID
         sentReadReceipts.insert(message.id)
         
         // Create read receipt using the simplified method

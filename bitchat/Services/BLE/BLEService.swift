@@ -1155,13 +1155,13 @@ final class BLEService: NSObject {
         let ts = Date(timeIntervalSince1970: Double(packet.timestamp) / 1000)
         let message = BitchatMessage(
             sender: senderNickname,
+            senderPeerID: peerID,
             content: marker,
             timestamp: ts,
             isRelay: false,
             originalSender: nil,
             isPrivate: isPrivateMessage,
-            recipientNickname: nil,
-            senderPeerID: peerID
+            recipientNickname: nil
         )
 
         SecureLogger.debug("📁 Stored incoming media from \(peerID.id.prefix(8))… -> \(destination.lastPathComponent)", category: .session)
