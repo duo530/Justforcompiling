@@ -1,4 +1,4 @@
-name: Build & name: Build & Export IPA
+name: Build & Export IPA
 
 on:
   push:
@@ -21,59 +21,11 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      - name: Setup Swift 6 (snapshot)
-        uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: "DEVELOPMENT-SNAPSHOT-2024-09-10-a"
-
-      - name: Resolve Swift Packages
-        run: swift package resolve
-
-      - name: Build bitchat (unsigned)
+      - name: Install Swift 6 snapshot manually
         run: |
-          xcodebuild \
-            -project bitchat.xcodeproj \
-            -scheme "bitchat (iOS)" \
-            -sdk iphoneos \
-            -configuration Release \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            -allowProvisioningUpdates \
-            clean build \
-            IPHONEOS_DEPLOYMENT_TARGET=15.0
-
-      - name: Find .ipa or .app
-        run: |
-          mkdir -p build_artifacts
-          find . -type d -name "*.app" -exec cp -r {} build_artifacts/ \; || true
-          find . -type f -name "*.ipa" -exec cp {} build_artifacts/ \; || true
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: bitchat-build
-          path: build_artifacts
-    inputs:
-      branch:
-        description: "Escolha o branch pra buildar manualmente"
-        required: false
-        default: "ios-15"
-
-jobs:
-  build:
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch || github.ref_name }}
-
-      - name: Setup Swift
-        uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: "5.10"
+          curl -O https://download.swift.org/development/xcode/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-09-10-a/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-09-10-a-osx.pkg
+          sudo installer -pkg swift-6.0-DEVELOPMENT-SNAPSHOT-2024-09-10-a-osx.pkg -target /
+          swift --version
 
       - name: Resolve Swift Packages
         run: swift package resolve
