@@ -21,9 +21,15 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
+      - name: Install Swift 6 snapshot manually
+        run: |
+          curl -O https://download.swift.org/development/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-08-08-a/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-08-08-a-osx.pkg
+          sudo installer -pkg swift-6.0-DEVELOPMENT-SNAPSHOT-2024-08-08-a-osx.pkg -target /
+          swift --version
+
       - name: Resolve Swift Packages
         run: swift package resolve
-# hello
+
       - name: Build bitchat (unsigned)
         run: |
           xcodebuild \
@@ -37,6 +43,7 @@ jobs:
             -allowProvisioningUpdates \
             clean build \
             IPHONEOS_DEPLOYMENT_TARGET=15.0
+
       - name: Find .ipa or .app
         run: |
           mkdir -p build_artifacts
