@@ -3,8 +3,13 @@ name: Build & Export IPA
 on:
   push:
     branches:
-      - main
+      - ios-15
   workflow_dispatch:
+    inputs:
+      branch:
+        description: "Escolha o branch pra buildar manualmente"
+        required: false
+        default: "ios-15"
 
 jobs:
   build:
@@ -13,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
 
       - name: Setup Swift
         uses: swift-actions/setup-swift@v2
@@ -27,7 +34,7 @@ jobs:
           xcodebuild \
             -project bitchat.xcodeproj \
             -scheme "bitchat (iOS)" \
-            -sdk iphoneos18.0 \
+            -sdk iphoneos \
             -configuration Release \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
