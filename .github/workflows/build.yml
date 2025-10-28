@@ -13,7 +13,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - name: Checkout
@@ -29,7 +29,7 @@ jobs:
           xcodebuild \
             -project bitchat.xcodeproj \
             -scheme "bitchat (iOS)" \
-            -sdk iphoneos \
+            -sdk iphoneos16.0 \
             -configuration Release \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
