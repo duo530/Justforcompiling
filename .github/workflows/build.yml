@@ -21,15 +21,6 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      - name: Install Swift 6 snapshot manually
-        run: |
-          curl -O https://download.swift.org/swiftly/darwin/swiftly.pkg && \
-installer -pkg swiftly.pkg -target CurrentUserHomeDirectory && \
-~/.swiftly/bin/swiftly init --quiet-shell-followup && \
-. "${SWIFTLY_HOME_DIR:-$HOME/.swiftly}/env.sh" && \
-hash -r
-
-
       - name: Resolve Swift Packages
         run: swift package resolve
 
@@ -46,7 +37,6 @@ hash -r
             -allowProvisioningUpdates \
             clean build \
             IPHONEOS_DEPLOYMENT_TARGET=15.0
-# sweep a leaf sweep away a troubles
       - name: Find .ipa or .app
         run: |
           mkdir -p build_artifacts
