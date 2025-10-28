@@ -23,9 +23,12 @@ jobs:
 
       - name: Install Swift 6 snapshot manually
         run: |
-          curl -O https://download.swift.org/development/xcode/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-09-10-a/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-09-10-a-osx.pkg
-          sudo installer -pkg swift-6.0-DEVELOPMENT-SNAPSHOT-2024-09-10-a-osx.pkg -target /
-          swift --version
+          curl -O https://download.swift.org/swiftly/darwin/swiftly.pkg && \
+installer -pkg swiftly.pkg -target CurrentUserHomeDirectory && \
+~/.swiftly/bin/swiftly init --quiet-shell-followup && \
+. "${SWIFTLY_HOME_DIR:-$HOME/.swiftly}/env.sh" && \
+hash -r
+
 
       - name: Resolve Swift Packages
         run: swift package resolve
