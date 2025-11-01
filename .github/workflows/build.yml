@@ -21,31 +21,44 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
+      - name: Set up Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
       - name: Resolve Swift Packages
         run: swift package resolve
 
-      - name: Build bitchat (unsigned)
+      - name: Build BitChat (unsigned)
         run: |
           xcodebuild \
             -project bitchat.xcodeproj \
             -scheme "bitchat (iOS)" \
             -sdk iphoneos \
             -configuration Release \
+            -destination "generic/platform=iOS" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            -allowProvisioningUpdates \
-            clean build \
-            IPHONEOS_DEPLOYMENT_TARGET=15.0
+            IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+            clean build
 
-      - name: Find .ipa or .app
+      - name: Create .ipa
         run: |
           mkdir -p build_artifacts
-          find . -type d -name "*.app" -exec cp -r {} build_artifacts/ \; || true
-          find . -type f -name "*.ipa" -exec cp {} build_artifacts/ \; || true
+          APP_PATH=$(find . -type d -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ Nenhum .app encontrado!"
+            exit 1
+          fi
+          echo "✅ .app encontrado em $APP_PATH"
+          pushd "$(dirname "$APP_PATH")"
+          zip -r ../bitchat.ipa "$(basename "$APP_PATH")"
+          popd
+          mv bitchat.ipa build_artifacts/
 
-      - name: Upload Artifacts
+      - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bitchat-build
-          path: build_artifacts
+          name: bitchat-unsigned
+          path: build_artifacts/bitchat.ipa
